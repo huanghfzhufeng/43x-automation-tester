@@ -1,0 +1,68 @@
+# ============================================================================
+# 43X Automation Tester - Python Dependencies
+# ============================================================================
+
+# Web 框架
+fastapi>=0.104.1
+uvicorn[standard]>=0.24.0
+python-multipart>=0.0.6
+
+# Google Agent Development Kit
+google-adk>=1.14.0
+
+# 环境变量管理
+python-dotenv>=1.0.0
+
+# HTTP 客户端
+httpx>=0.25.1
+
+# 数据验证
+pydantic>=2.5.0
+pydantic-settings>=2.1.0
+
+# ============================================================================
+# 可选依赖
+# ============================================================================
+
+# 文件处理（如需支持 DOCX 文件）
+# python-docx>=1.1.2
+
+# PDF 处理（如需支持 PDF 文件）
+# PyPDF2>=3.0.0
+# pdfplumber>=0.10.0
+
+# ============================================================================
+# 开发工具（可选）
+# ============================================================================
+
+# 测试
+# pytest>=7.4.3
+# pytest-asyncio>=0.21.1
+# pytest-cov>=4.1.0
+
+# 代码格式化
+# black>=23.11.0
+# ruff>=0.1.0
+
+# 类型检查
+# mypy>=1.7.1
+
+# ============================================================================
+# 安装说明
+# ============================================================================
+#
+# 基础安装（仅核心依赖）:
+#   pip install -r requirements.txt
+#
+# 完整安装（包含开发工具）:
+#   pip install -r requirements.txt
+#   pip install pytest pytest-asyncio black ruff mypy
+#
+# 使用国内镜像加速:
+#   pip install -r requirements.txt -i https://pypi.tuna.tsinghua.edu.cn/simple
+#
+# 使用虚拟环境（推荐）:
+#   python -m venv .venv
+#   source .venv/bin/activate  # Windows: .venv\Scripts\activate
+#   pip install -r requirements.txt
+#

@@ -1,0 +1,203 @@
+[project]
+name = "43x-automation-tester"
+version = "1.0.0"
+description = "43X Agent 自动化测试工具"
+authors = [
+    {name = "43X Team"}
+]
+requires-python = ">=3.10"
+dependencies = [
+    "fastapi>=0.104.1",
+    "uvicorn[standard]>=0.24.0",
+    "python-multipart>=0.0.6",
+    "google-adk>=1.14.0",
+    "litellm>=1.0.0",
+    "python-dotenv>=1.0.0",
+    "httpx>=0.25.1",
+    "pydantic>=2.5.0",
+    "pydantic-settings>=2.1.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "ruff>=0.1.0",
+    "mypy>=1.7.1",
+    "pytest>=7.4.3",
+    "pytest-asyncio>=0.21.1",
+    "pytest-cov>=4.1.0",
+]
+
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools]
+packages = ["automation_tester"]
+
+[tool.setuptools.package-data]
+automation_tester = ["py.typed"]
+
+# ============================================================================
+# Ruff 配置
+# ============================================================================
+[tool.ruff]
+# 目标 Python 版本
+target-version = "py310"
+
+# 每行最大字符数
+line-length = 100
+
+# 要检查的文件
+include = ["automation_tester/**/*.py", "scripts/**/*.py"]
+
+# 排除的目录
+exclude = [
+    ".git",
+    ".venv",
+    "__pycache__",
+    "build",
+    "dist",
+    "*.egg-info",
+    "logs",
+]
+
+[tool.ruff.lint]
+# 启用的规则集
+select = [
+    "E",      # pycodestyle errors
+    "W",      # pycodestyle warnings
+    "F",      # pyflakes
+    "I",      # isort (import sorting)
+    "N",      # pep8-naming
+    "UP",     # pyupgrade
+    "B",      # flake8-bugbear
+    "C4",     # flake8-comprehensions
+    "SIM",    # flake8-simplify
+    "RUF",    # Ruff-specific rules
+]
+
+# 忽略的规则
+ignore = [
+    "E501",   # 行太长（由 formatter 处理）
+    "B008",   # 函数调用中的默认参数
+    "N802",   # 函数名应该小写（允许 setUp 等）
+    "RUF001", # 字符串中的全角标点（中文文档需要）
+    "RUF002", # 文档字符串中的全角标点（中文文档需要）
+    "RUF003", # 注释中的全角标点（中文注释需要）
+]
+
+# 每个文件允许的未使用导入
+[tool.ruff.lint.per-file-ignores]
+"__init__.py" = ["F401"]  # 允许未使用的导入
+"test_import.py" = ["F401"]  # 测试文件，导入是为了验证
+
+[tool.ruff.lint.isort]
+# import 排序配置
+known-first-party = ["automation_tester"]
+section-order = ["future", "standard-library", "third-party", "first-party", "local-folder"]
+
+[tool.ruff.format]
+# 使用双引号
+quote-style = "double"
+
+# 缩进使用空格
+indent-style = "space"
+
+# 保留魔法尾随逗号
+skip-magic-trailing-comma = false
+
+# 行尾使用 LF
+line-ending = "auto"
+
+# ============================================================================
+# Mypy 配置
+# ============================================================================
+[tool.mypy]
+# Python 版本
+python_version = "3.10"
+
+# 严格模式（逐步启用）
+warn_return_any = true
+warn_unused_configs = true
+warn_redundant_casts = true
+warn_unused_ignores = true
+warn_no_return = true
+warn_unreachable = true
+strict_equality = true
+strict_concatenate = true
+
+# 类型检查选项
+check_untyped_defs = true
+disallow_untyped_defs = false  # 暂时关闭，逐步添加类型注解
+disallow_any_unimported = false
+disallow_any_expr = false
+disallow_any_decorated = false
+disallow_any_explicit = false
+disallow_subclassing_any = false
+disallow_untyped_calls = false
+
+# 导入发现
+namespace_packages = true
+explicit_package_bases = true
+
+# 错误输出
+show_error_codes = true
+show_column_numbers = true
+show_error_context = true
+pretty = true
+
+# 忽略缺少类型提示的第三方库
+[[tool.mypy.overrides]]
+module = [
+    "google.*",
+    "uvicorn.*",
+    "fastapi.*",
+]
+ignore_missing_imports = true
+
+# 忽略 entrepreneur_agent.py 中的 arg-type 错误（Google ADK 的类型限制）
+[[tool.mypy.overrides]]
+module = "automation_tester.entrepreneur_agent"
+disable_error_code = ["arg-type"]
+
+# ============================================================================
+# Pytest 配置
+# ============================================================================
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = ["test_*.py"]
+python_classes = ["Test*"]
+python_functions = ["test_*"]
+addopts = [
+    "-v",
+    "--strict-markers",
+    "--cov=automation_tester",
+    "--cov-report=term-missing",
+    "--cov-report=html",
+]
+markers = [
+    "slow: marks tests as slow (deselect with '-m \"not slow\"')",
+    "integration: marks tests as integration tests",
+]
+
+# ============================================================================
+# Coverage 配置
+# ============================================================================
+[tool.coverage.run]
+source = ["automation_tester"]
+omit = [
+    "*/tests/*",
+    "*/__pycache__/*",
+    "*/site-packages/*",
+]
+
+[tool.coverage.report]
+exclude_lines = [
+    "pragma: no cover",
+    "def __repr__",
+    "raise AssertionError",
+    "raise NotImplementedError",
+    "if __name__ == .__main__.:",
+    "if TYPE_CHECKING:",
+    "@abstractmethod",
+]

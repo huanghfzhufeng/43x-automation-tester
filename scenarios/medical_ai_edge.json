@@ -1,0 +1,117 @@
+{
+  "scenario_name": "medical_ai_edge",
+  "company_name": "医智科技",
+  "industry": "医疗 AI",
+  "product": "AI 辅助诊断系统（肺结节检测）",
+  "revenue": "ARR 200万人民币",
+  "team": "8人，医疗+AI 复合背景",
+  "funding_need": "Pre-A 1000万人民币",
+  "expected_result": "pending",
+  "project_details": {
+    "founding_date": "2021年6月",
+    "certifications": [
+      "NMPA 二类医疗器械注册证",
+      "ISO 13485 质量管理体系认证"
+    ],
+    "technology": {
+      "model": "自研深度学习模型",
+      "accuracy": "92% 敏感度，95% 特异度",
+      "training_data": "10万+ 标注影像数据",
+      "validation": "多中心临床验证",
+      "innovation": "结合影像组学和深度学习"
+    },
+    "market": {
+      "target": "三甲医院影像科",
+      "pricing": "按检查次数收费，5-10元/次",
+      "tam": "200亿人民币",
+      "sam": "50亿人民币",
+      "competitors": [
+        "推想科技",
+        "依图医疗",
+        "深睿医疗",
+        "汇医慧影"
+      ],
+      "competitive_advantage": "专注肺结节细分领域，准确率较高"
+    },
+    "customers": {
+      "hospitals": [
+        "北京协和医院",
+        "301医院",
+        "上海瑞金医院",
+        "浙江大学附属第一医院"
+      ],
+      "total_hospitals": 12,
+      "pipeline": "正在洽谈 20+ 家医院"
+    },
+    "team_details": {
+      "ceo": "张医生，协和医院影像科副主任医师，10年临床经验",
+      "cto": "李博士，清华大学 AI 博士，5年医疗 AI 研发经验",
+      "medical_advisors": 3,
+      "engineers": 4,
+      "sales": 1
+    },
+    "financials": {
+      "revenue": "200万人民币/年",
+      "customers": 12,
+      "arpu": "16.7万/年",
+      "growth_rate": "15% MoM",
+      "gross_margin": "70%",
+      "burn_rate": "80万/月",
+      "runway": "8个月"
+    },
+    "milestones": {
+      "completed": [
+        "获得 NMPA 二类证",
+        "完成多中心临床验证",
+        "签约 12 家三甲医院"
+      ],
+      "q1_2024": "医院数量达到 30 家",
+      "q2_2024": "ARR 达到 500万",
+      "q3_2024": "启动三类证申请",
+      "q4_2024": "拓展其他病种"
+    },
+    "use_of_funds": {
+      "rd": "35% - 产品研发和算法优化",
+      "regulatory": "20% - 三类证申请和临床试验",
+      "sales": "30% - 销售团队扩张",
+      "operations": "15% - 运营和管理"
+    },
+    "opportunities": {
+      "market_growth": "医疗 AI 市场快速增长",
+      "policy_support": "国家支持 AI 医疗发展",
+      "clinical_need": "影像科医生工作量大，需求强烈",
+      "certification": "已获得 NMPA 证，有准入资格",
+      "hospital_network": "已建立头部医院客户基础"
+    },
+    "risks": {
+      "regulatory": "高 - 医疗器械监管严格，三类证申请难度大",
+      "market": "中 - 市场竞争激烈，头部公司优势明显",
+      "sales_cycle": "高 - 医院采购周期长（6-12个月）",
+      "reimbursement": "高 - 医保收费政策不明确",
+      "technology": "中 - 算法准确率需持续提升",
+      "execution": "中 - 需要平衡研发和商业化"
+    },
+    "concerns": [
+      "营收规模较小，增长速度一般",
+      "销售周期长，现金流压力大",
+      "三类证申请周期长（2-3年），不确定性高",
+      "医保收费政策不明确，影响商业化",
+      "市场竞争激烈，头部公司资源优势明显",
+      "需要持续投入研发，资金需求大"
+    ],
+    "strengths": [
+      "已获得 NMPA 二类证，有市场准入资格",
+      "团队医疗+AI 复合背景，专业能力强",
+      "已签约多家头部三甲医院，有客户验证",
+      "技术指标达到行业水平",
+      "专注细分领域，有一定差异化"
+    ],
+    "decision_factors": [
+      "三类证申请进展和时间表",
+      "医保收费政策落地情况",
+      "销售增长速度和客户质量",
+      "技术指标持续提升能力",
+      "团队执行力和资源整合能力"
+    ]
+  }
+}

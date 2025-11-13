@@ -1,0 +1,69 @@
+{
+  "scenario_name": "ai_saas_pass",
+  "company_name": "智语科技",
+  "industry": "AI 客服 SaaS",
+  "product": "基于大模型的智能客服系统",
+  "revenue": "ARR 500万人民币",
+  "team": "15人，核心团队来自阿里、腾讯",
+  "funding_need": "A轮 2000万人民币",
+  "expected_result": "passed",
+  "project_details": {
+    "founding_date": "2022年3月",
+    "customers": [
+      "阿里巴巴",
+      "腾讯",
+      "字节跳动",
+      "美团",
+      "京东"
+    ],
+    "technology": {
+      "model": "GPT-4",
+      "accuracy": "95%",
+      "response_time": "2秒",
+      "languages": ["中文", "英文", "日文"],
+      "integration": ["微信", "钉钉", "企业微信", "Slack"]
+    },
+    "financials": {
+      "mrr": "42万人民币",
+      "growth_rate": "30% MoM",
+      "churn_rate": "5%",
+      "gross_margin": "85%",
+      "cac": "8000元",
+      "ltv": "12万元",
+      "burn_rate": "50万/月"
+    },
+    "team_details": {
+      "ceo": "张伟，前阿里巴巴 P9，10年 AI 研发经验",
+      "cto": "李明，前腾讯 T4，AI 算法专家",
+      "coo": "王芳，前字节跳动运营总监",
+      "engineers": 8,
+      "sales": 4,
+      "operations": 3
+    },
+    "market": {
+      "tam": "1000亿人民币",
+      "sam": "100亿人民币",
+      "som": "10亿人民币",
+      "competitors": ["智齿科技", "网易七鱼", "环信"],
+      "competitive_advantage": "基于最新 GPT-4 模型，准确率行业领先；已有头部客户背书"
+    },
+    "milestones": {
+      "q1_2024": "完成 A 轮融资",
+      "q2_2024": "客户数突破 50 家",
+      "q3_2024": "ARR 达到 1000万",
+      "q4_2024": "开始盈利"
+    },
+    "use_of_funds": {
+      "rd": "40% - 产品研发和技术优化",
+      "sales": "35% - 销售团队扩张",
+      "marketing": "15% - 市场推广",
+      "operations": "10% - 运营和管理"
+    },
+    "risks": {
+      "technology": "低 - 技术成熟，团队经验丰富",
+      "market": "中 - 市场竞争激烈，需要快速占领市场",
+      "regulatory": "低 - 无特殊监管要求",
+      "execution": "低 - 团队执行力强，已有成功案例"
+    }
+  }
+}

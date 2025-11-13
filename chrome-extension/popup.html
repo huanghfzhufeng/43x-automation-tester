@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>43X Agent Tester</title>
+  <link rel="stylesheet" href="popup.css">
+</head>
+<body>
+  <div class="popup-container">
+    <!-- 标题 -->
+    <div class="header">
+      <h1>43X Agent Tester</h1>
+      <p class="subtitle">自动化测试工具</p>
+    </div>
+
+    <!-- 文件上传区 -->
+    <div class="upload-section">
+      <h3>📁 上传场景配置</h3>
+      <div class="upload-buttons">
+        <button id="uploadConfig" class="btn btn-secondary">
+          上传配置 (.json)
+        </button>
+        <button id="uploadFiles" class="btn btn-secondary">
+          上传资料 (.pdf/.docx/.md/.txt)
+        </button>
+      </div>
+      <input type="file" id="configFileInput" accept=".json" style="display: none;">
+      <input type="file" id="filesInput" accept=".pdf,.docx,.doc,.md,.txt" multiple style="display: none;">
+      
+      <div id="fileList" class="file-list"></div>
+    </div>
+
+    <!-- 场景选择 -->
+    <div class="scenario-section">
+      <h3>📋 最近使用</h3>
+      <select id="recentScenarios" class="select">
+        <option value="">选择最近使用的场景...</option>
+      </select>
+    </div>
+
+    <!-- 控制按钮 -->
+    <div class="control-section">
+      <button id="startTest" class="btn btn-primary" disabled>
+        ▶️ 开始测试
+      </button>
+      <button id="stopTest" class="btn btn-danger" disabled>
+        ⏹️ 停止测试
+      </button>
+    </div>
+
+    <!-- 进度显示 -->
+    <div class="progress-section" id="progressSection" style="display: none;">
+      <div class="status-badge" id="statusBadge">等待中</div>
+      
+      <div class="stats">
+        <div class="stat-item">
+          <span class="stat-label">轮次:</span>
+          <span class="stat-value" id="rounds">0 / 50</span>
+        </div>
+        <div class="stat-item">
+          <span class="stat-label">阶段:</span>
+          <span class="stat-value" id="stage">未开始</span>
+        </div>
+        <div class="stat-item">
+          <span class="stat-label">耗时:</span>
+          <span class="stat-value" id="timer">00:00</span>
+        </div>
+      </div>
+
+      <div class="progress-bar-container">
+        <div class="progress-bar" id="progressBar"></div>
+      </div>
+    </div>
+
+    <!-- 结果显示 -->
+    <div class="result-section" id="resultSection" style="display: none;">
+      <div class="result-icon" id="resultIcon">✅</div>
+      <div class="result-details" id="resultDetails"></div>
+    </div>
+
+    <!-- 操作按钮 -->
+    <div class="action-section">
+      <button id="viewLogs" class="btn btn-link">📄 查看日志</button>
+      <button id="settings" class="btn btn-link">⚙️ 设置</button>
+      <button id="downloadExample" class="btn btn-link">📥 下载示例</button>
+    </div>
+
+    <!-- 状态栏 -->
+    <div class="footer">
+      <span id="serviceStatus" class="service-status">
+        🔴 Agent Service 未连接
+      </span>
+    </div>
+  </div>
+
+  <script src="popup.js"></script>
+</body>
+</html>

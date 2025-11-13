@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>设置 - 43X Agent Tester</title>
+  <link rel="stylesheet" href="settings.css">
+</head>
+<body>
+  <div class="settings-container">
+    <!-- 标题 -->
+    <div class="header">
+      <button id="backButton" class="back-button">← 返回</button>
+      <h1>设置</h1>
+    </div>
+
+    <!-- 配置表单 -->
+    <form id="settingsForm">
+      <!-- Agent Service 配置 -->
+      <div class="settings-section">
+        <h3>🔌 Agent Service 配置</h3>
+        
+        <div class="form-group">
+          <label for="agentServiceUrl">Service URL</label>
+          <input 
+            type="text" 
+            id="agentServiceUrl" 
+            name="agentServiceUrl"
+            placeholder="http://localhost:8001"
+            required
+          >
+          <small>Python Agent Service 的地址</small>
+        </div>
+      </div>
+
+      <!-- 测试参数 -->
+      <div class="settings-section">
+        <h3>⚙️ 测试参数</h3>
+        
+        <div class="form-group">
+          <label for="maxRounds">最大对话轮次</label>
+          <input 
+            type="number" 
+            id="maxRounds" 
+            name="maxRounds"
+            min="1"
+            max="100"
+            placeholder="50"
+            required
+          >
+          <small>超过此轮次将自动终止测试</small>
+        </div>
+
+        <div class="form-group">
+          <label for="inputDelay">自动输入延迟 (毫秒)</label>
+          <input 
+            type="number" 
+            id="inputDelay" 
+            name="inputDelay"
+            min="0"
+            max="10000"
+            step="100"
+            placeholder="1000"
+            required
+          >
+          <small>自动输入前的等待时间</small>
+        </div>
+
+        <div class="form-group">
+          <label for="messageTimeout">消息检测超时 (秒)</label>
+          <input 
+            type="number" 
+            id="messageTimeout" 
+            name="messageTimeout"
+            min="10"
+            max="300"
+            placeholder="60"
+            required
+          >
+          <small>等待新消息的最长时间</small>
+        </div>
+      </div>
+
+      <!-- 高级选项 -->
+      <div class="settings-section">
+        <h3>🔧 高级选项</h3>
+        
+        <div class="form-group checkbox-group">
+          <label>
+            <input 
+              type="checkbox" 
+              id="autoRetry" 
+              name="autoRetry"
+            >
+            <span>启用自动重试</span>
+          </label>
+          <small>失败时自动重试操作</small>
+        </div>
+
+        <div class="form-group checkbox-group">
+          <label>
+            <input 
+              type="checkbox" 
+              id="debugMode" 
+              name="debugMode"
+            >
+            <span>调试模式</span>
+          </label>
+          <small>输出详细的调试日志</small>
+        </div>
+
+        <div class="form-group checkbox-group">
+          <label>
+            <input 
+              type="checkbox" 
+              id="autoScreenshot" 
+              name="autoScreenshot"
+            >
+            <span>错误时自动截图</span>
+          </label>
+          <small>发生错误时保存页面截图</small>
+        </div>
+      </div>
+
+      <!-- 按钮 -->
+      <div class="button-group">
+        <button type="button" id="resetButton" class="btn btn-secondary">
+          恢复默认
+        </button>
+        <button type="submit" class="btn btn-primary">
+          保存设置
+        </button>
+      </div>
+    </form>
+
+    <!-- 状态提示 -->
+    <div id="statusMessage" class="status-message" style="display: none;"></div>
+  </div>
+
+  <script src="settings.js"></script>
+</body>
+</html>

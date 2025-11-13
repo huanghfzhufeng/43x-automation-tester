@@ -1,0 +1,44 @@
+{
+  "manifest_version": 3,
+  "name": "43X Agent Tester",
+  "version": "1.0.0",
+  "description": "43X Agent 自动化测试工具 - 通过 RPA 技术自动化测试投资 Agent 对话能力",
+  "permissions": [
+    "storage",
+    "activeTab",
+    "scripting"
+  ],
+  "host_permissions": [
+    "http://localhost:3000/*",
+    "http://localhost:8001/*",
+    "https://43x.ai/*",
+    "https://www-dev-74d2c2a9.zenia.art/*"
+  ],
+  "background": {
+    "service_worker": "background.js",
+    "type": "module"
+  },
+  "content_scripts": [
+    {
+      "matches": [
+        "http://localhost:3000/*",
+        "https://43x.ai/*",
+        "https://www-dev-74d2c2a9.zenia.art/*"
+      ],
+      "js": ["content.js"],
+      "run_at": "document_end"
+    }
+  ],
+  "action": {
+    "default_icon": {
+      "16": "icons/icon16.png",
+      "48": "icons/icon48.png",
+      "128": "icons/icon128.png"
+    }
+  },
+  "icons": {
+    "16": "icons/icon16.png",
+    "48": "icons/icon48.png",
+    "128": "icons/icon128.png"
+  }
+}

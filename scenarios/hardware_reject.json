@@ -1,0 +1,86 @@
+{
+  "scenario_name": "hardware_reject",
+  "company_name": "未来机器人",
+  "industry": "消费级硬件",
+  "product": "家庭服务机器人",
+  "revenue": "0",
+  "team": "5人，无相关行业经验",
+  "funding_need": "天使轮 500万人民币",
+  "expected_result": "rejected",
+  "project_details": {
+    "founding_date": "2023年10月",
+    "stage": "原型阶段",
+    "prototype_status": "已完成外观设计，功能原型开发中",
+    "technology": {
+      "hardware": "外购机械臂和传感器",
+      "software": "基于开源 ROS 系统",
+      "ai": "调用第三方 API",
+      "innovation": "无核心技术创新"
+    },
+    "market": {
+      "target": "家庭用户",
+      "price": "预计售价 5000-8000元",
+      "tam": "500亿人民币",
+      "competitors": [
+        "科沃斯",
+        "石头科技",
+        "云鲸",
+        "追觅",
+        "小米"
+      ],
+      "competitive_advantage": "暂无明确优势"
+    },
+    "team_details": {
+      "founder": "刘强，应届毕业生，计算机专业",
+      "cto": "陈浩，2年开发经验，无硬件背景",
+      "designer": "赵丽，工业设计专业，应届生",
+      "engineers": 2,
+      "no_hardware_experience": true,
+      "no_supply_chain_experience": true
+    },
+    "financials": {
+      "revenue": "0",
+      "customers": "0",
+      "burn_rate": "15万/月",
+      "runway": "预计资金可用 3-4个月",
+      "unit_cost": "未知",
+      "gross_margin": "未知"
+    },
+    "challenges": {
+      "technology": "核心技术依赖外购，无自主研发能力",
+      "supply_chain": "无供应链资源和经验",
+      "manufacturing": "无生产制造经验",
+      "market": "市场已被头部品牌占据，价格战激烈",
+      "team": "团队缺乏行业经验和资源",
+      "funding": "资金需求大，回报周期长"
+    },
+    "milestones": {
+      "q1_2024": "完成功能原型",
+      "q2_2024": "小批量试产",
+      "q3_2024": "开始销售",
+      "q4_2024": "实现盈亏平衡"
+    },
+    "use_of_funds": {
+      "rd": "50% - 产品研发",
+      "manufacturing": "30% - 小批量生产",
+      "marketing": "15% - 市场推广",
+      "operations": "5% - 日常运营"
+    },
+    "risks": {
+      "technology": "高 - 技术不成熟，依赖外部方案",
+      "market": "高 - 市场竞争激烈，无差异化优势",
+      "team": "高 - 团队经验不足",
+      "supply_chain": "高 - 无供应链资源",
+      "regulatory": "中 - 需要 3C 认证等",
+      "execution": "高 - 硬件创业难度大，失败率高"
+    },
+    "red_flags": [
+      "团队无硬件行业经验",
+      "无核心技术壁垒",
+      "市场竞争激烈，无差异化",
+      "资金需求大，回报周期长",
+      "供应链和生产能力缺失",
+      "商业模式不清晰"
+    ]
+  }
+}
