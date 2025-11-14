@@ -76,5 +76,23 @@ uv.lock
 chrome-extension/*.zip
 chrome-extension/*.crx
 
+# Test files and databases
+test_*.py
+test_chroma_db/
+chroma_db/
+
+# Session data
+sessions/
+
+# Documentation (临时文档)
+*_SUMMARY.md
+*_STATUS.md
+*_ASSESSMENT.md
+*_FIX.md
+*_INTEGRATION*.md
+*_OPTIMIZED.md
+TROUBLESHOOTING.md
+START_GUIDE.md
+
 # 其他
 .cache/

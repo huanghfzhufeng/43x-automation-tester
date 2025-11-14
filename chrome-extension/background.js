@@ -67,6 +67,9 @@ class AgentServiceClient {
     }
 
     console.log('💬 请求回答...');
+    console.log('⚠️ 发送的问题完整内容:', `[${question}]`);  // 用方括号包裹，方便看是否为空
+    console.log('⚠️ 问题长度:', question ? question.length : 0);
+    console.log('⚠️ 问题是否为空:', !question || question.trim() === '');
 
     try {
       const response = await this.fetchWithRetry(`${this.baseURL}/api/test/answer`, {

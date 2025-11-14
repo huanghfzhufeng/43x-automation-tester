@@ -20,16 +20,20 @@ from automation_tester.logging_config import (
     log_llm_call,
     log_qa_interaction,
 )
+from automation_tester.services.local_storage import LocalFileStorage
+from automation_tester.services.memory_manager import MemoryManager
+from automation_tester.services.rag_service import RAGService
 from automation_tester.utils import DEFAULT_AGENT_CONFIG, build_user_message
+from automation_tester.utils.text_chunker import ChunkingStrategy, TextChunker
 
 logger = get_logger("entrepreneur_agent.agent")
 
 # System Instruction 模板
 ENTREPRENEUR_INSTRUCTION_TEMPLATE = """
-# 创业者角色提示词
+## Role 角色
+你是 {company_name} 的创始人，正在通过 43X.AI 投资评估系统与投资人（孙悟空）进行初步访谈。
 
-## 角色定位
-你是一位正在寻求融资的创业者，通过 43X 投资评估系统与投资人对话。你拥有丰富的行业经验，目标是基于项目资料充分展示价值，获得投资认可和资金支持。
+你的核心任务是：基于项目资料，以自然、真诚的方式回答投资人的问题，展示项目价值，建立信任。
 
 ## 项目信息
 {project_info}
@@ -37,117 +41,114 @@ ENTREPRENEUR_INSTRUCTION_TEMPLATE = """
 ## 商业计划书内容
 {bp_content}
 
-## 核心原则
-- **真实性**: 严格基于上传的项目资料回答，不编造或夸大
-- **身份感**: 保持创业者视角，使用第一人称（"我们"、"我"）
-- **适应性**: 根据问题类型调整回答深度和详细程度
-- **诚实度**: 承认不足和风险，同时展示解决方案
-- **透明度**: 资料中没有的信息，诚实说明需进一步核实
+## Core Principle 核心原则
 
-## 核心任务
-准确理解投资人问题 → 提供结构化、有洞察力的回答 → 展现项目核心价值和团队能力 → 建立信任 → 推动融资成功
+### 1. 单一回应单元 (Single Response Unit)
+这是你必须严格遵守的输出规则。你的每一次回复都必须是一个完整、简洁的回答。
 
-## 回答流程
+**结构**：
+- 直接回答投资人的核心问题
+- 给出1-2个关键数据或事实支撑
+- 不要分点罗列超过3个要点
+- 不要使用"首先...其次...最后..."的结构
 
-### 第一步：问题分析
-- 识别问题意图：信息收集/深度分析/风险评估/条款讨论
-- 判断问题类型：基础信息/数据指标/战略分析/竞争格局/风险挑战/估值条款
-- 确定回答详细度：简洁/标准/深入
-- 识别对话阶段：初评/深评/尽调/决策
+**长度控制**：
+- 基础信息：30-60字
+- 数据指标：50-100字
+- 深度分析：80-150字（最多不超过200字）
 
-### 第二步：信息组织
-**信息提取**：
-- 定位相关数据和事实
-- 识别支撑性案例和证据
-- 梳理逻辑关系和因果链条
-- 准备追问应对
+**禁止**：
+- ✗ 开头说"感谢您的认可"、"这是个好问题"
+- ✗ 分点罗列超过3个要点
+- ✗ 每个点都展开成段落
+- ✗ 讲投资人没问的内容
+- ✗ 使用"首先...其次...再次...最后..."的结构
 
-**结构组织**：
-- 核心观点先行（直接回答）
-- 分点展开论述（2-3个要点）
-- 数据和案例支撑（具体化、可验证）
-- 适度留白（给追问空间）
+### 2. 对话上下文感知
+在回答前，先检查：
+- 投资人是否在追问同一个问题？
+- 投资人是否对上轮回答不满意？
 
-## 分类回答策略
+如果是追问/重复问题：
+- 立即直接回答核心问题，不要再绕弯
+- 长度：50-80字
+- 示例："核心差异是私有化部署能力，竞品都是SaaS模式，大客户不接受。我们已交付15套，行业最快。"
 
-### 1. 基础信息类（公司名、行业、团队、产品）
-- **长度**: 50-100字
-- **结构**: [核心答案] + [关键补充]
-- **策略**: 简洁明了，直接回答
+### 3. 自然对话风格
+你是在和投资人聊天，不是在写商业计划书。
 
-### 2. 数据指标类（营收、增长、客户、留存）
-- **长度**: 80-150字
-- **结构**: [具体数据] + [趋势说明] + [驱动因素]
-- **策略**: 给出具体数字，简要说明趋势和原因
+**真实创业者的语气**：
+- ✓ "确实，这是个挑战"
+- ✓ "这块我们还在摸索"
+- ✓ "数据不算特别好看，但趋势在改善"
+- ✓ "这个我需要回去确认一下"
 
-### 3. 深度分析类（价值主张、商业模式、竞争优势）
-- **长度**: 150-300字
-- **结构**: [核心观点] + [分点展开2-3点] + [数据/案例证明]
-- **策略**: 分点阐述，展现思考深度
+**避免的"官话"**：
+- ✗ "感谢您的认可和关注"
+- ✗ "我们战略前瞻，布局第二增长曲线"
+- ✗ "我们团队具备深厚的行业积累"
+- ✗ "我们致力于为客户创造价值"
 
-### 4. 风险挑战类（技术风险、市场风险、成本压力）
-- **长度**: 150-250字
-- **结构**: [承认挑战] + [应对策略2-3点] + [当前进展]
-- **策略**: 承认问题，展示解决方案和进展
+### 4. 数据化、具体化
+用具体数字，不要用模糊描述：
+- ✓ "ARR 500万，月增15%"（不是"营收表现良好"）
+- ✓ "付费客户80家"（不是"客户数量稳步增长"）
+- ✓ "获客成本8000元"（不是"获客效率较高"）
+- ✓ "核心差异是私有化部署"（不是"我们有独特的技术优势"）
 
-### 5. 估值条款类（融资金额、估值依据、条款细节）
-- **长度**: 100-200字
-- **结构**: [估值/条款说明] + [依据/对标] + [灵活表态]
-- **策略**: 说明逻辑和依据，保持开放和灵活
+## 回答策略
 
-## 语言表达规范
+### 基础信息类（公司、产品、团队）
+**长度**：30-60字
+**示例**："我们是做企业级AI客服SaaS的，主要服务电商和金融行业。"
 
-### 结构化表达
-- 使用"首先...其次...最后..."等连接词
-- 关键信息分点列举，清晰易懂
-- 复杂概念用简单语言解释
-- 避免过长单句，保持节奏
+### 数据指标类（营收、增长、客户）
+**长度**：50-100字
+**示例**："ARR 500万，月增15%，主要来自续费和老客户增购。付费客户80家，平均客单价6万/年。"
 
-### 数据化表达
-- 用具体数字替代模糊描述（"500万" vs "不少"）
-- 给出百分比和增长率（"月增长20%"）
-- 提供对比数据（"高于行业平均70%"）
-- 说明数据来源和时间点
+### 差异化/竞争优势类
+**长度**：60-120字
+**示例**："核心差异是私有化部署能力，竞品都是SaaS模式，大客户不接受。我们已经交付15套私有化系统，平均部署周期2周，行业最快。"
 
-### 专业化表达
-- 适度使用行业术语（ARR、NPS、LTV/CAC）
-- 展现对行业的深刻理解
-- 引用行业标准和最佳实践
-- 避免过度堆砌专业词汇
+### 商业模式/获客策略类
+**长度**：80-150字
+**示例**："主要靠行业会议和老客户转介绍。去年参加8场行业峰会，转化率12%，获客成本8000元。转介绍占40%，成本几乎为零。"
 
-### 情感化表达
-- 保持创业者的热情和自信
-- 适度表现对项目的信念
-- 对挑战保持理性和冷静
-- 对投资人保持尊重和开放
+### 风险挑战类
+**长度**：80-150字
+**示例**："确实，大客户销售周期长是个挑战，平均6个月。我们的应对是：1）标准化POC流程，缩短到3个月；2）先做中小客户跑现金流。目前中小客户占比60%，现金流为正。"
 
 ## 特殊情况应对
 
+### 投资人连续追问同一问题
+**信号**：投资人第2次、第3次问同样的问题
+**原因**：你前几次都没回答到点上
+**策略**：
+1. 立即停止绕弯
+2. 用最简单的语言，一句话回答核心问题
+3. 给出具体数据或事实
+4. 不要再扩散到其他话题
+
+**示例**：
+- 投资人（第3次问）："你们的产品差异化到底是什么？"
+- 你："私有化部署能力。竞品都是SaaS，大客户不接受。我们已交付15套，行业最快。"（50字，直击要害）
+
 ### 资料中没有的信息
-"这个具体数据我手头没有，需要回去跟[财务/技术/运营]团队确认一下。不过大概的情况是...[给出合理推测或相关信息]"
+"这个数据我手头没有，需要确认。大概是[合理推测]。"（不要长篇解释为什么没有）
 
 ### 涉及敏感信息
-"这个涉及到[商业机密/客户隐私/竞业协议]，不太方便透露具体细节。但我可以说的是...[给出可公开的部分]"
+"这个涉及商业机密，不方便透露。但可以说[可公开部分]。"（不要解释为什么敏感）
 
-### 遇到质疑或挑战
-"您说得对，这确实是个[挑战/风险/需要关注的点]。我们的应对策略是...[展示思考深度和解决方案]。目前的进展是...[说明已采取的行动]"
+### 遇到质疑
+"您说得对，这确实是风险。我们的应对是[具体方案]，目前[进展]。"（不要防御性解释）
 
-### 遇到重复问题
-"这个问题刚才有提到过，简单再说一下核心点：...[简洁复述]。如果您想了解更具体的[某个方面]，我可以详细展开。"
-
-### 遇到开放性问题
-"这是个很好的问题。从我的角度看...[给出有洞察力的回答]。具体来说...[分点展开]"
-
-### 遇到假设性问题
-"如果出现[假设情况]，我们会...[说明应对方案]。我们已经做了一些准备，比如...[说明预案]"
-
-## 关键提醒
-✓ 始终基于项目资料回答，保持真实性
-✓ 展现创业者的专业度和对项目的深刻理解
-✓ 平衡自信与谦逊，承认挑战但展示应对能力
-✓ 用数据说话，用案例佐证
-✓ 保持对话的自然流畅，避免机械回答
-✓ 融资需求和估值必须以人民币为单位（43X 是人民币基金）
+## 关键提醒（每次回答前必读）
+✓ 第一句话必须直接回答核心问题
+✓ 控制回答长度，避免"白皮书式"输出
+✓ 用具体数字，不要用模糊描述
+✓ 不要讲投资人没问的内容
+✓ 不要客套话、官话、套话
+✓ 融资需求和估值必须以人民币为单位（43X是人民币基金）
 """
 
 
@@ -172,7 +173,7 @@ class EntrepreneurAgent:
                 f"test_{scenario_config.get('scenario_name', 'unknown')}_{int(time.time())}"
             )
             self.session_service = InMemorySessionService()
-            self.app_name = "entrepreneur_test"
+            self.app_name = "agents"
             self.user_id = "test_investor"
             self.round_count = 0
             self.start_time = time.time()
@@ -188,6 +189,10 @@ class EntrepreneurAgent:
             logger.info(f"   团队: {scenario_config.get('team', 'N/A')}")
             logger.info(f"   融资需求: {scenario_config.get('funding_need', 'N/A')}")
             logger.info(f"   预期结果: {scenario_config.get('expected_result', 'N/A')}")
+
+            # 🔥 先初始化 RAG 服务（在构建 instruction 之前）
+            self.rag_service = None
+            self._initialize_rag_service()
 
             # 构建 system instruction
             instruction = self._build_instruction()
@@ -220,19 +225,43 @@ class EntrepreneurAgent:
                 agent=self.agent,
                 session_service=self.session_service,
             )
+            
+            # 🔥 初始化本地文件存储
+            self.local_storage = None
+            self._initialize_local_storage()
+            
+            # 🔥 初始化 MemoryManager
+            self.memory_manager = None
+            self._initialize_memory_manager()
 
     def _build_instruction(self) -> str:
         """
         构建 system instruction
+        
+        🔥 优化版本：移除完整 BP 内容，使用 RAG 动态检索
+        只保留角色定义和行为规则，大幅减少 token 消耗
 
         Returns:
             str: 完整的 system instruction
         """
         project_info = self._format_project_info()
-        bp_content = self.scenario_config.get("bp_content", "暂无商业计划书内容")
+        company_name = self.scenario_config.get("company_name", "本公司")
+        
+        # 🔥 关键优化：如果 RAG 服务已初始化，则不包含完整 BP 内容
+        if self.rag_service:
+            bp_content = (
+                "（项目详细材料已向量化存储，将根据投资人问题动态检索相关内容）"
+            )
+            logger.info("✅ 使用瘦身版 System Instruction（RAG 模式）")
+        else:
+            # 降级：如果 RAG 未初始化，使用完整 BP 内容
+            bp_content = self.scenario_config.get("bp_content", "暂无商业计划书内容")
+            logger.info("⚠️ 使用完整版 System Instruction（传统模式）")
 
         return ENTREPRENEUR_INSTRUCTION_TEMPLATE.format(
-            project_info=project_info, bp_content=bp_content
+            company_name=company_name,
+            project_info=project_info,
+            bp_content=bp_content
         )
 
     def _format_project_info(self) -> str:
@@ -266,6 +295,217 @@ class EntrepreneurAgent:
             info_parts.append(json.dumps(details, ensure_ascii=False, indent=2))
 
         return "\n".join(info_parts)
+    
+    def _initialize_rag_service(self):
+        """
+        初始化 RAG 服务并将 BP 内容向量化
+        """
+        try:
+            bp_content = self.scenario_config.get("bp_content", "")
+            
+            if not bp_content or bp_content == "暂无商业计划书内容":
+                logger.info("⚠️ 没有 BP 内容，跳过 RAG 初始化")
+                return
+            
+            logger.info("🔥 开始初始化 RAG 服务...")
+            
+            # 创建 RAG 服务
+            self.rag_service = RAGService(
+                session_id=self.session_id,
+                persist_dir="./chroma_db",
+            )
+            
+            # 分块 BP 内容
+            logger.info(f"📄 BP 内容长度: {len(bp_content)} 字符")
+            
+            chunk_config = TextChunker.create_config(
+                strategy=ChunkingStrategy.RECURSIVE,
+                chunk_size=800,  # 每块 800 字符
+                chunk_overlap=100,  # 重叠 100 字符
+            )
+            
+            chunks = TextChunker.chunk_text_sync(bp_content, chunk_config)
+            logger.info(f"✅ 文本分块完成: {len(chunks)} 个块")
+            
+            # 准备元数据
+            metadatas = []
+            for i, chunk in enumerate(chunks):
+                metadatas.append({
+                    "session_id": self.session_id,
+                    "company_name": self.scenario_config.get("company_name", "Unknown"),
+                    "chunk_index": i,
+                    "chunk_length": len(chunk),
+                })
+            
+            # 存入向量数据库
+            logger.info("🔄 正在向量化并存储到数据库...")
+            ids = self.rag_service.add_chunks(chunks, metadatas)
+            logger.info(f"✅ RAG 服务初始化完成: {len(ids)} 个文本块已存储")
+            
+        except Exception as e:
+            logger.error(f"❌ RAG 服务初始化失败: {e}", exc_info=True)
+            logger.warning("⚠️ 将继续使用传统方式（完整 BP 内容）")
+            self.rag_service = None
+    
+    def _initialize_local_storage(self):
+        """
+        初始化本地文件存储
+        """
+        try:
+            logger.info("🔥 初始化本地文件存储...")
+            
+            # 创建本地存储服务
+            self.local_storage = LocalFileStorage(
+                session_id=self.session_id,
+                base_dir="./sessions",
+            )
+            
+            # 保存会话元信息
+            metadata = {
+                "session_id": self.session_id,
+                "scenario_name": self.scenario_config.get("scenario_name", "unknown"),
+                "company_name": self.scenario_config.get("company_name", "unknown"),
+                "created_at": time.time(),
+            }
+            self.local_storage.save_metadata(metadata)
+            
+            logger.info(f"✅ 本地文件存储初始化完成: {self.local_storage.session_dir}")
+            
+        except Exception as e:
+            logger.error(f"❌ 本地文件存储初始化失败: {e}", exc_info=True)
+            logger.warning("⚠️ 将继续运行，但不会持久化数据")
+            self.local_storage = None
+    
+    def _initialize_memory_manager(self):
+        """
+        初始化 MemoryManager（三层记忆管理）
+        """
+        try:
+            logger.info("🔥 初始化 MemoryManager...")
+            
+            # 创建 MemoryManager
+            # 注意：这里不传入 llm_client，使用简单规则生成摘要
+            # 如果需要使用 LLM 生成摘要，可以传入 OpenAI client
+            self.memory_manager = MemoryManager(
+                session_id=self.session_id,
+                max_short_term_rounds=5,  # 短期记忆保留 5 轮
+                compress_rounds=3,  # 每次压缩 3 轮
+                llm_client=None,  # 暂不使用 LLM 生成摘要
+            )
+            
+            # 尝试从本地文件恢复记忆
+            self._load_memory_from_file()
+            
+            logger.info("✅ MemoryManager 初始化完成")
+            
+        except Exception as e:
+            logger.error(f"❌ MemoryManager 初始化失败: {e}", exc_info=True)
+            logger.warning("⚠️ 将继续运行，但不会使用三层记忆管理")
+            self.memory_manager = None
+    
+    def _load_memory_from_file(self):
+        """
+        从本地文件恢复记忆
+        """
+        if not self.local_storage:
+            logger.debug("⚠️ 本地存储未初始化，跳过记忆恢复")
+            return
+        
+        try:
+            import os
+            summary_file = os.path.join(self.local_storage.session_dir, "summary.json")
+            
+            if not os.path.exists(summary_file):
+                logger.debug("📝 没有找到历史记忆文件，从头开始")
+                return
+            
+            # 读取摘要文件
+            import json
+            with open(summary_file, "r", encoding="utf-8") as f:
+                data = json.load(f)
+            
+            # 恢复长期记忆
+            from automation_tester.services.memory_manager import ConversationSummary
+            
+            for summary_data in data.get("long_term_summaries", []):
+                summary = ConversationSummary(
+                    summary=summary_data["summary"],
+                    key_facts=summary_data["key_facts"],
+                    round_range=tuple(summary_data["round_range"]),
+                    timestamp=summary_data["timestamp"],
+                )
+                self.memory_manager.long_term.add_summary(summary)
+            
+            # 恢复短期记忆
+            from automation_tester.services.memory_manager import Message
+            
+            for msg_data in data.get("short_term_messages", []):
+                message = Message(
+                    role=msg_data["role"],
+                    content=msg_data["content"],
+                    timestamp=msg_data["timestamp"],
+                    round_number=msg_data["round_number"],
+                )
+                self.memory_manager.short_term.messages.append(message)
+            
+            # 恢复当前轮次
+            self.memory_manager.short_term.current_round = data.get("current_round", 0)
+            
+            logger.info(
+                f"✅ 记忆恢复完成: "
+                f"{len(self.memory_manager.long_term.summaries)} 个摘要, "
+                f"{len(self.memory_manager.short_term.messages)} 条短期消息"
+            )
+            
+        except Exception as e:
+            logger.warning(f"⚠️ 记忆恢复失败: {e}", exc_info=True)
+    
+    def _save_memory_to_file(self):
+        """
+        保存记忆到本地文件（summary.json）
+        """
+        if not self.local_storage or not self.memory_manager:
+            return
+        
+        try:
+            import os
+            import json
+            
+            summary_file = os.path.join(self.local_storage.session_dir, "summary.json")
+            
+            # 构建数据结构
+            data = {
+                "session_id": self.session_id,
+                "current_round": self.memory_manager.short_term.current_round,
+                "long_term_summaries": [
+                    {
+                        "summary": s.summary,
+                        "key_facts": s.key_facts,
+                        "round_range": list(s.round_range),
+                        "timestamp": s.timestamp,
+                    }
+                    for s in self.memory_manager.long_term.summaries
+                ],
+                "short_term_messages": [
+                    {
+                        "role": m.role,
+                        "content": m.content,
+                        "timestamp": m.timestamp,
+                        "round_number": m.round_number,
+                    }
+                    for m in self.memory_manager.short_term.messages
+                ],
+                "updated_at": time.time(),
+            }
+            
+            # 写入文件
+            with open(summary_file, "w", encoding="utf-8") as f:
+                json.dump(data, f, ensure_ascii=False, indent=2)
+            
+            logger.debug(f"✅ 记忆已保存到 {summary_file}")
+            
+        except Exception as e:
+            logger.warning(f"⚠️ 记忆保存失败: {e}", exc_info=True)
 
     async def ensure_session(self):
         """
@@ -293,8 +533,11 @@ class EntrepreneurAgent:
                         "scenario_name": self.scenario_config.get("scenario_name"),
                         "company_name": self.scenario_config.get("company_name"),
                         "stage": "entrepreneur_interview",
+                        # 注意：不存储 rag_service 和 memory_manager，因为它们包含不可序列化的对象
+                        # 这些对象作为 Agent 实例变量管理，通过 before_model_callback 访问
                     },
                 )
+            
             logger.debug("🧰 会话已初始化并可复用")
         except Exception:
             logger.warning("⚠️ 会话初始化失败，将在首轮时按需创建", exc_info=True)
@@ -313,9 +556,16 @@ class EntrepreneurAgent:
         round_start = time.time()
 
         logger.info(f"📝 [Round {self.round_count}] 收到问题")
+        logger.info(f"   问题内容: {question}")  # 打印完整问题
         logger.debug(f"   问题长度: {len(question)} 字符")
 
         try:
+            # 🔥 使用 MemoryManager 管理记忆
+            if self.memory_manager:
+                # 添加用户消息到记忆
+                self.memory_manager.add_user_message(question)
+                logger.debug(f"✅ 用户消息已添加到 MemoryManager")
+            
             # 使用复用的 Runner 处理消息（更稳健、对齐深评端）
             with LogContext(logger, f"LLM API 调用 - Round {self.round_count}", logging.DEBUG):
                 answer = ""
@@ -346,6 +596,43 @@ class EntrepreneurAgent:
                 answer=answer,
                 elapsed_time=elapsed,
             )
+            
+            # 🔥 使用 MemoryManager 管理记忆
+            if self.memory_manager:
+                # 添加助手回答到记忆
+                self.memory_manager.add_assistant_message(answer)
+                logger.debug(f"✅ 助手回答已添加到 MemoryManager")
+                
+                # 保存记忆到文件
+                self._save_memory_to_file()
+            
+            # 🔥 持久化对话到本地文件
+            if self.local_storage:
+                try:
+                    # 保存用户问题
+                    self.local_storage.append_event({
+                        "role": "user",
+                        "content": question,
+                        "round": self.round_count,
+                    })
+                    
+                    # 保存 Agent 回答
+                    self.local_storage.append_event({
+                        "role": "entrepreneur",
+                        "content": answer,
+                        "round": self.round_count,
+                    })
+                    
+                    # 保存当前状态
+                    self.local_storage.save_state({
+                        "round_count": self.round_count,
+                        "total_elapsed_time": time.time() - self.start_time,
+                        "scenario_config": self.scenario_config,
+                    })
+                    
+                    logger.debug(f"✅ 第 {self.round_count} 轮对话已持久化")
+                except Exception as e:
+                    logger.warning(f"⚠️ 持久化失败: {e}")
 
             return answer
 
@@ -362,7 +649,7 @@ class EntrepreneurAgent:
         Returns:
             dict: 包含 session_id、轮次、耗时等统计信息
         """
-        return {
+        stats = {
             "session_id": self.session_id,
             "scenario_name": self.scenario_config.get("scenario_name"),
             "company_name": self.scenario_config.get("company_name"),
@@ -370,3 +657,19 @@ class EntrepreneurAgent:
             "elapsed_time": time.time() - self.start_time,
             "avg_time_per_round": (time.time() - self.start_time) / max(self.round_count, 1),
         }
+        
+        # 添加记忆统计信息
+        if self.memory_manager:
+            try:
+                stats["memory"] = self.memory_manager.get_stats()
+            except Exception as e:
+                logger.warning(f"⚠️ 获取记忆统计信息失败: {e}")
+                stats["memory"] = {
+                    "error": str(e),
+                    "short_term_rounds": 0,
+                    "short_term_messages": 0,
+                    "long_term_summaries": 0,
+                    "material_count": 0,
+                }
+        
+        return stats
