@@ -34,11 +34,11 @@ class WordFile(BaseFile):
         try:
             # 使用python-docx读取Word文档
             doc = Document(self._path)
-            
+
             # 按顺序提取文档内容（文本、图片、表格）
             full_text = []
             await self._extract_content_in_order(doc, full_text)
-            
+
             # 合并所有文本
             if full_text:
                 combined_text = "\n".join(full_text)
@@ -50,7 +50,7 @@ class WordFile(BaseFile):
 
         except Exception as e:
             logger.error(f"解析Word文档失败: {e}")
-            raise RuntimeError(f"解析Word文档 {self._path} 失败: {e}")
+            raise RuntimeError(f"解析Word文档 {self._path} 失败: {e}") from e
 
     async def _extract_content_in_order(self, doc, full_text):
         try:
@@ -59,36 +59,38 @@ class WordFile(BaseFile):
             for rel in doc.part.rels.values():
                 if "image" in rel.target_ref:
                     image_map[rel.rId] = rel.target_part.blob
-            
+
             # 遍历文档的所有元素，保持顺序
             for element in doc.element.body:
-                if element.tag.endswith('p'):
+                if element.tag.endswith("p"):
                     paragraph = None
                     for p in doc.paragraphs:
                         if p._element == element:
                             paragraph = p
                             break
-                    
+
                     if paragraph:
                         if paragraph.text.strip():
                             full_text.append(paragraph.text.strip())
-                        
+
                         for run in paragraph.runs:
-                            for inline_shape in run._element.xpath('.//a:blip'):
-                                embed_id = inline_shape.get('{http://schemas.openxmlformats.org/officeDocument/2006/relationships}embed')
+                            for inline_shape in run._element.xpath(".//a:blip"):
+                                embed_id = inline_shape.get(
+                                    "{http://schemas.openxmlformats.org/officeDocument/2006/relationships}embed"
+                                )
                                 if embed_id and embed_id in image_map:
                                     image_data = image_map[embed_id]
                                     image_text = await self._parse_single_image(image_data)
                                     if image_text:
                                         full_text.append(f"{image_text}")
-                
-                elif element.tag.endswith('tbl'):
+
+                elif element.tag.endswith("tbl"):
                     table = None
                     for t in doc.tables:
                         if t._element == element:
                             table = t
                             break
-                    
+
                     if table:
                         table_text = []
                         for row in table.rows:
@@ -97,9 +99,10 @@ class WordFile(BaseFile):
                                     table_text.append(cell.text.strip())
                         if table_text:
                             full_text.append(" | ".join(table_text))
-        
+
         except Exception as e:
             logger.warning(f"按顺序提取内容时出错: {e}")
+
     async def _parse_single_image(self, image_data):
         """解析单个图片"""
         try:
@@ -109,5 +112,3 @@ class WordFile(BaseFile):
         except Exception as e:
             logger.warning(f"解析单个图片时出错: {e}")
             return "图片解析失败"
-
-

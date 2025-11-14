@@ -41,4 +41,4 @@ class ImageFile(BaseFile):
 
         except Exception as e:
             logger.error(f"解析图片文件失败: {e}")
-            raise RuntimeError(f"解析图片文件 {self._path} 失败: {e}")
+            raise RuntimeError(f"解析图片文件 {self._path} 失败: {e}") from e

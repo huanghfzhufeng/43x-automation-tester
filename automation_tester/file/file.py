@@ -1,5 +1,6 @@
+from collections.abc import AsyncGenerator
 from enum import Enum
-from typing import Any, AsyncGenerator
+from typing import Any
 
 from automation_tester.file.image import ImageFile
 from automation_tester.file.markdown import MarkdownFile

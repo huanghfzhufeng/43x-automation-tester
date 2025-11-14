@@ -22,7 +22,7 @@ class MarkdownFile(BaseFile):
             window_size = kwargs.get("window_size", DEFAULT_CHUNK_SIZE)
             window_overlap = kwargs.get("window_overlap", DEFAULT_CHUNK_OVERLAP)
 
-            with open(self._path, "r", encoding="utf-8") as file:
+            with open(self._path, encoding="utf-8") as file:
                 md_text = file.read()
                 html = markdown(md_text, extensions=["tables"])
                 soup = BeautifulSoup(html, "html.parser")
@@ -33,9 +33,7 @@ class MarkdownFile(BaseFile):
                 )
 
                 buffer = ""
-                elements = (
-                    list(soup.body.children) if soup.body else list(soup.children)
-                )
+                elements = list(soup.body.children) if soup.body else list(soup.children)
                 for el in elements:
                     if hasattr(el, "name") and el.name == "table":
                         if buffer.strip():
@@ -46,25 +44,17 @@ class MarkdownFile(BaseFile):
                         rows = el.find_all("tr")
                         if not rows:
                             continue
-                        headers = [
-                            th.get_text(strip=True)
-                            for th in rows[0].find_all(["th", "td"])
-                        ]
+                        headers = [th.get_text(strip=True) for th in rows[0].find_all(["th", "td"])]
                         data_rows = []
                         for tr in rows[1:]:
-                            cells = [
-                                td.get_text(strip=True)
-                                for td in tr.find_all(["th", "td"])
-                            ]
+                            cells = [td.get_text(strip=True) for td in tr.find_all(["th", "td"])]
                             if len(cells) == len(headers):
-                                data_rows.append(dict(zip(headers, cells)))
+                                data_rows.append(dict(zip(headers, cells, strict=False)))
                         table_json = json.dumps(data_rows, ensure_ascii=False)
                         yield f"START_TABLE\n{table_json}\nEND_TABLE"
                     else:
                         text = (
-                            el.get_text(strip=True)
-                            if hasattr(el, "get_text")
-                            else str(el).strip()
+                            el.get_text(strip=True) if hasattr(el, "get_text") else str(el).strip()
                         )
                         if text:
                             buffer += text + "\n\n"
@@ -74,4 +64,4 @@ class MarkdownFile(BaseFile):
                         yield chunk
 
         except Exception as e:
-            raise RuntimeError(f"解析 Markdown 文件 {self._path} 失败: {e}")
+            raise RuntimeError(f"解析 Markdown 文件 {self._path} 失败: {e}") from e

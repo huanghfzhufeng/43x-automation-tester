@@ -5,7 +5,6 @@ from pathlib import Path
 
 from PIL import Image
 
-from automation_tester.config import LLMConfig
 from automation_tester.file.base_file import BaseFile
 from automation_tester.utils.image_parser import parse_image_with_llm
 
@@ -36,13 +35,13 @@ class PPTFile(BaseFile):
             from pptx.enum.shapes import MSO_SHAPE_TYPE
         except ImportError as e:
             logger.error(f"缺少python-pptx依赖: {e}")
-            raise ImportError("请安装python-pptx")
+            raise ImportError("请安装python-pptx") from e
 
         try:
             prs = Presentation(self._path)
         except Exception as e:
             logger.error(f"无法打开 PPT 文件: {e}")
-            raise RuntimeError(f" PPT 文件格式错误或损坏: {e}")
+            raise RuntimeError(f" PPT 文件格式错误或损坏: {e}") from e
 
         for slide_index, slide in enumerate(prs.slides, 1):
             try:
@@ -57,7 +56,7 @@ class PPTFile(BaseFile):
                         if image and image.blob:
                             with Image.open(io.BytesIO(image.blob)) as pil_image:
                                 pil_image.thumbnail((1024, 1024))
-                                
+
                                 max_retries = 3
                                 for attempt in range(max_retries):
                                     try:

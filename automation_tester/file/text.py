@@ -17,16 +17,14 @@ class TextFile(BaseFile):
         if not self._path:
             raise ValueError("path is not set")
 
-        with open(self._path, "r", encoding="utf-8") as f:
+        with open(self._path, encoding="utf-8") as f:
             try:
                 texts = f.read()
                 chunk_size = kwargs.get("chunk_size", DEFAULT_CHUNK_SIZE)
                 chunk_overlap = kwargs.get("chunk_overlap", DEFAULT_CHUNK_OVERLAP)
                 config = TextChunker.create_config(
                     strategy=ChunkingStrategy.RECURSIVE,
-                    chunk_size=chunk_size
-                    if isinstance(chunk_size, int)
-                    else DEFAULT_CHUNK_SIZE,
+                    chunk_size=chunk_size if isinstance(chunk_size, int) else DEFAULT_CHUNK_SIZE,
                     chunk_overlap=chunk_overlap
                     if isinstance(chunk_overlap, int)
                     else DEFAULT_CHUNK_OVERLAP,

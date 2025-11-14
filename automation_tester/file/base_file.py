@@ -1,5 +1,6 @@
 from abc import ABC, abstractmethod
-from typing import Any, AsyncGenerator
+from collections.abc import AsyncGenerator
+from typing import Any
 
 from automation_tester.utils.file_utils import is_local_path, is_oss_path
 
