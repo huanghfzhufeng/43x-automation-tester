@@ -8,13 +8,16 @@
 
 ## 📖 项目简介
 
-43X Automation Tester 是一个自动化测试工具，用于测试 43X 投资 Agent 的对话和评估能力。通过 Chrome 插件和 Python Agent Service 的配合，实现：
+43X Automation Tester 是一个智能化的自动化测试工具，用于测试 43X 投资 Agent 的对话和评估能力。通过 Chrome 插件和 Python Agent Service 的配合，实现：
 
 - 🤖 **自动化对话测试** - 模拟真实的投资评估对话流程
 - 📊 **多场景测试** - 支持不同行业、阶段的创业项目场景
 - 📈 **实时监控** - 实时显示测试进度、轮次、状态
 - 📝 **日志记录** - 完整记录测试过程和结果
 - ⚙️ **灵活配置** - 支持自定义测试参数和场景
+- 📄 **智能文件处理** - 支持 PDF、Word、PPT、Markdown、图片等多种格式
+- 🧠 **RAG 知识库** - 基于 ChromaDB 的向量检索增强生成
+- 💾 **上下文管理** - 智能内存管理和上下文优化
 
 ## 🏗️ 系统架构
 
@@ -130,9 +133,25 @@ uv run python -m automation_tester.entrepreneur_agent_service
 │   ├── entrepreneur_agent_service.py  # FastAPI 服务
 │   ├── scenario_loader.py     # 场景加载器
 │   ├── logging_config.py      # 日志配置
+│   ├── file/                  # 文件处理模块
+│   │   ├── base_file.py       # 文件基类
+│   │   ├── pdf.py             # PDF 处理
+│   │   ├── word.py            # Word 处理
+│   │   ├── ppt.py             # PPT 处理
+│   │   ├── markdown.py        # Markdown 处理
+│   │   ├── image.py           # 图片处理
+│   │   └── text.py            # 文本处理
+│   ├── services/              # 核心服务
+│   │   ├── rag_service.py     # RAG 向量检索服务
+│   │   ├── memory_manager.py  # 内存管理器
+│   │   └── local_storage.py   # 本地存储服务
 │   └── utils/                 # 工具模块
 │       ├── adk_config.py      # ADK 配置
-│       └── message.py         # 消息构建
+│       ├── message.py         # 消息构建
+│       ├── context_limiter.py # 上下文限制器
+│       ├── text_chunker.py    # 文本分块
+│       ├── file_utils.py      # 文件工具
+│       └── image_parser.py    # 图片解析
 │
 ├── chrome-extension/           # Chrome 插件
 │   ├── manifest.json
@@ -148,13 +167,19 @@ uv run python -m automation_tester.entrepreneur_agent_service
 │   ├── medical_ai_edge.json
 │   └── SCENARIOS_GUIDE.md
 │
+├── examples/                   # 示例代码
+│   └── file_processing_example.py
+│
 ├── scripts/                    # 工具脚本
 │   ├── start_service.py       # 启动服务
 │   └── package_extension.py   # 打包插件
 │
 ├── logs/                       # 日志目录
+├── sessions/                   # 会话数据（自动生成）
+├── chroma_db/                  # 向量数据库（自动生成）
 │
 ├── requirements.txt            # Python 依赖
+├── pyproject.toml             # 项目配置
 ├── .env.example               # 环境变量示例
 ├── .gitignore
 ├── LICENSE
@@ -277,12 +302,67 @@ uv run python -m automation_tester.entrepreneur_agent_service
 
 更多问题请查看 [故障排查文档](docs/TROUBLESHOOTING.md)
 
+## ✨ 核心功能
+
+### 📄 智能文件处理
+
+支持多种文件格式的智能解析和处理：
+
+- **PDF 文件** - 提取文本、表格和图片内容
+- **Word 文档** - 解析 .docx 格式，保留格式信息
+- **PPT 演示** - 提取幻灯片内容和图片
+- **Markdown** - 解析 Markdown 格式文档
+- **图片文件** - 使用 OCR 和视觉模型提取信息
+- **纯文本** - 支持各种编码的文本文件
+
+```python
+from automation_tester.file import File
+
+# 自动识别文件类型并处理
+file = File("document.pdf")
+content = file.read()
+print(content)
+```
+
+### 🧠 RAG 知识库
+
+基于 ChromaDB 的向量检索增强生成系统：
+
+- **向量存储** - 自动将文档内容向量化存储
+- **语义检索** - 基于语义相似度检索相关内容
+- **上下文增强** - 为 Agent 提供相关背景知识
+- **持久化存储** - 支持会话级和全局知识库
+
+```python
+from automation_tester.services import RAGService
+
+rag = RAGService()
+rag.add_document("company_info.pdf")
+results = rag.search("公司的核心产品是什么？")
+```
+
+### 💾 智能内存管理
+
+优化 Agent 的上下文使用，提升对话质量：
+
+- **自动摘要** - 压缩历史对话保留关键信息
+- **上下文限制** - 智能控制 token 使用
+- **会话管理** - 支持多会话并行处理
+- **本地存储** - 持久化会话数据
+
+```python
+from automation_tester.services import MemoryManager
+
+memory = MemoryManager(session_id="test_001")
+memory.add_message("user", "介绍一下你的产品")
+context = memory.get_context()
+```
+
 ## 📚 文档
 
-- [启动指南](START_GUIDE.md) - 详细启动说明
-- [故障排查](TROUBLESHOOTING.md) - 常见问题解决
 - [场景说明](scenarios/SCENARIOS_GUIDE.md) - 场景设计指南
-- [Chrome 插件](chrome-extension/README.md) - 插件使用说明
+- [文件处理](automation_tester/file/README.md) - 文件处理模块说明
+- [示例代码](examples/file_processing_example.py) - 功能使用示例
 
 ## 🧪 测试
 
