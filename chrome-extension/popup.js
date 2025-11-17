@@ -21,12 +21,32 @@ let startTime = null;
 // ============================================================================
 
 const elements = {
+  // 表单配置
+  configForm: document.getElementById('configForm'),
+  scenarioName: document.getElementById('scenarioName'),
+  companyName: document.getElementById('companyName'),
+  industry: document.getElementById('industry'),
+  product: document.getElementById('product'),
+  revenue: document.getElementById('revenue'),
+  team: document.getElementById('team'),
+  fundingNeed: document.getElementById('fundingNeed'),
+  expectedResult: document.getElementById('expectedResult'),
+  customers: document.getElementById('customers'),
+  technology: document.getElementById('technology'),
+  toggleAdvanced: document.getElementById('toggleAdvanced'),
+  advancedIcon: document.getElementById('advancedIcon'),
+  advancedOptions: document.getElementById('advancedOptions'),
+  configPreview: document.getElementById('configPreview'),
+  previewContent: document.getElementById('previewContent'),
+  editConfig: document.getElementById('editConfig'),
+  
   // 上传
-  uploadConfig: document.getElementById('uploadConfig'),
-  uploadFiles: document.getElementById('uploadFiles'),
-  configFileInput: document.getElementById('configFileInput'),
+  uploadFilesBtn: document.getElementById('uploadFilesBtn'),
   filesInput: document.getElementById('filesInput'),
   fileList: document.getElementById('fileList'),
+  aiExtractStatus: document.getElementById('aiExtractStatus'),
+  aiExtractSuccess: document.getElementById('aiExtractSuccess'),
+  aiSuccessMessage: document.getElementById('aiSuccessMessage'),
   
   // 场景选择
   recentScenarios: document.getElementById('recentScenarios'),
@@ -51,7 +71,6 @@ const elements = {
   // 操作
   viewLogs: document.getElementById('viewLogs'),
   settings: document.getElementById('settings'),
-  downloadExample: document.getElementById('downloadExample'),
   
   // 状态
   serviceStatus: document.getElementById('serviceStatus')
@@ -111,19 +130,21 @@ async function loadSettings() {
 // ============================================================================
 
 function bindEvents() {
-  // 上传配置
-  elements.uploadConfig.addEventListener('click', () => {
-    elements.configFileInput.click();
-  });
+  // 表单提交
+  elements.configForm.addEventListener('submit', handleFormSubmit);
   
-  elements.configFileInput.addEventListener('change', handleConfigUpload);
+  // 高级选项切换
+  elements.toggleAdvanced.addEventListener('click', toggleAdvancedOptions);
   
-  // 上传文件
-  elements.uploadFiles.addEventListener('click', () => {
+  // 编辑配置
+  elements.editConfig.addEventListener('click', handleEditConfig);
+  
+  // 上传文件（自动触发 AI 提取）
+  elements.uploadFilesBtn.addEventListener('click', () => {
     elements.filesInput.click();
   });
   
-  elements.filesInput.addEventListener('change', handleFilesUpload);
+  elements.filesInput.addEventListener('change', handleFilesUploadWithAI);
   
   // 场景选择
   elements.recentScenarios.addEventListener('change', handleScenarioSelect);
@@ -135,96 +156,375 @@ function bindEvents() {
   // 操作按钮
   elements.viewLogs.addEventListener('click', handleViewLogs);
   elements.settings.addEventListener('click', handleOpenSettings);
-  elements.downloadExample.addEventListener('click', handleDownloadExample);
+  
+  // 拖拽上传
+  setupDragAndDrop();
 }
 
 // ============================================================================
-// 文件上传处理
+// 拖拽上传
 // ============================================================================
 
-async function handleConfigUpload(event) {
-  const file = event.target.files[0];
-  if (!file) return;
+function setupDragAndDrop() {
+  // 拖拽上传功能已移除
+}
+
+// ============================================================================
+// 表单处理
+// ============================================================================
+
+function handleFormSubmit(event) {
+  event.preventDefault();
   
-  console.log('📄 上传配置文件:', file.name);
+  // 收集表单数据
+  const formData = {
+    scenario_name: elements.scenarioName.value.trim(),
+    company_name: elements.companyName.value.trim(),
+    industry: elements.industry.value || undefined,
+    product: elements.product.value.trim() || undefined,
+    revenue: elements.revenue.value.trim() || undefined,
+    team: elements.team.value.trim() || undefined,
+    funding_need: elements.fundingNeed.value.trim() || undefined,
+    expected_result: elements.expectedResult.value || undefined,
+  };
   
-  try {
-    // 验证文件类型
-    if (!file.name.endsWith('.json')) {
-      throw new Error('配置文件必须是 .json 格式');
-    }
-    
-    // 验证文件大小（最大 1MB）
-    const maxSize = 1 * 1024 * 1024;
-    if (file.size > maxSize) {
-      throw new Error('配置文件过大（最大 1MB）');
-    }
-    
-    // 读取并解析 JSON
-    const text = await file.text();
-    const config = JSON.parse(text);
-    
-    // 验证必填字段
-    const requiredFields = ['scenario_name', 'company_name'];
-    const missingFields = requiredFields.filter(field => !config[field]);
-    
-    if (missingFields.length > 0) {
-      throw new Error(`配置文件缺少必填字段: ${missingFields.join(', ')}`);
-    }
-    
-    // 验证字段类型
-    if (typeof config.scenario_name !== 'string' || config.scenario_name.trim() === '') {
-      throw new Error('scenario_name 必须是非空字符串');
-    }
-    
-    if (typeof config.company_name !== 'string' || config.company_name.trim() === '') {
-      throw new Error('company_name 必须是非空字符串');
-    }
-    
-    // 如果已有配置，询问是否覆盖
-    if (currentConfig) {
-      const overwrite = confirm(`已有配置 "${currentConfig.scenario_name}"，是否覆盖？`);
-      if (!overwrite) {
-        console.log('⏭️ 取消上传配置');
-        event.target.value = '';
-        return;
-      }
-      // 移除旧的显示
-      const oldItem = elements.fileList.querySelector(`[data-type="config"]`);
-      if (oldItem) oldItem.remove();
-    }
-    
-    // 保存配置
-    currentConfig = config;
-    
-    // 显示文件
-    addFileToList(file.name, file.size, 'config');
-    
-    // 启用开始按钮
-    updateStartButton();
-    
-    // 保存到最近使用
-    await saveToRecent(config);
-    
-    console.log('✅ 配置加载成功:', config.scenario_name);
-    alert(`配置加载成功: ${config.scenario_name}`);
-    
-  } catch (error) {
-    console.error('❌ 配置加载失败:', error);
-    
-    let errorMessage = '配置文件错误:\n\n';
-    if (error instanceof SyntaxError) {
-      errorMessage += 'JSON 格式错误，请检查文件格式是否正确';
-    } else {
-      errorMessage += error.message;
-    }
-    
-    alert(errorMessage);
+  // 处理客户案例（逗号分隔）
+  const customersInput = elements.customers.value.trim();
+  if (customersInput) {
+    formData.customers = customersInput.split(',').map(c => c.trim()).filter(c => c);
   }
   
-  // 清空 input，允许重复上传
+  // 处理技术描述
+  const technologyInput = elements.technology.value.trim();
+  if (technologyInput) {
+    formData.technology = technologyInput;
+  }
+  
+  // 移除 undefined 字段
+  Object.keys(formData).forEach(key => {
+    if (formData[key] === undefined) {
+      delete formData[key];
+    }
+  });
+  
+  // 保存配置
+  currentConfig = formData;
+  
+  // 显示预览
+  showConfigPreview(formData);
+  
+  // 启用开始按钮
+  updateStartButton();
+  
+  // 保存到最近使用
+  saveToRecent(formData);
+  
+  console.log('✅ 配置已生成:', formData);
+  showToast('配置已生成！');
+}
+
+function showConfigPreview(config) {
+  // 隐藏表单，显示预览
+  elements.configForm.style.display = 'none';
+  elements.configPreview.style.display = 'block';
+  
+  // 生成预览内容
+  let html = '';
+  
+  html += `<div class="preview-item"><span class="preview-label">场景名称:</span> ${config.scenario_name}</div>`;
+  html += `<div class="preview-item"><span class="preview-label">公司名称:</span> ${config.company_name}</div>`;
+  
+  if (config.industry) {
+    html += `<div class="preview-item"><span class="preview-label">行业:</span> ${config.industry}</div>`;
+  }
+  
+  if (config.product) {
+    html += `<div class="preview-item"><span class="preview-label">产品:</span> ${config.product}</div>`;
+  }
+  
+  if (config.revenue) {
+    html += `<div class="preview-item"><span class="preview-label">营收:</span> ${config.revenue}</div>`;
+  }
+  
+  if (config.team) {
+    html += `<div class="preview-item"><span class="preview-label">团队:</span> ${config.team}</div>`;
+  }
+  
+  if (config.funding_need) {
+    html += `<div class="preview-item"><span class="preview-label">融资需求:</span> ${config.funding_need}</div>`;
+  }
+  
+  if (config.customers && config.customers.length > 0) {
+    html += `<div class="preview-item"><span class="preview-label">客户:</span> ${config.customers.join(', ')}</div>`;
+  }
+  
+  if (config.technology) {
+    html += `<div class="preview-item"><span class="preview-label">技术:</span> ${config.technology}</div>`;
+  }
+  
+  if (config.expected_result) {
+    const resultText = config.expected_result === 'passed' ? '通过' : '拒绝';
+    html += `<div class="preview-item"><span class="preview-label">预期结果:</span> ${resultText}</div>`;
+  }
+  
+  elements.previewContent.innerHTML = html;
+}
+
+function handleEditConfig() {
+  // 显示表单，隐藏预览
+  elements.configForm.style.display = 'block';
+  elements.configPreview.style.display = 'none';
+}
+
+function toggleAdvancedOptions() {
+  const isVisible = elements.advancedOptions.style.display !== 'none';
+  
+  if (isVisible) {
+    elements.advancedOptions.style.display = 'none';
+    elements.advancedIcon.classList.remove('expanded');
+  } else {
+    elements.advancedOptions.style.display = 'block';
+    elements.advancedIcon.classList.add('expanded');
+  }
+}
+
+// ============================================================================
+// 文件上传处理（自动触发 AI 提取）
+// ============================================================================
+
+async function handleFilesUploadWithAI(event) {
+  const files = Array.from(event.target.files);
+  if (files.length === 0) return;
+  
+  console.log('📁 智能上传文件:', files.length, '个');
+  
+  // 显示加载状态
+  elements.aiExtractStatus.style.display = 'flex';
+  elements.aiExtractSuccess.style.display = 'none';
+  
+  let successCount = 0;
+  let failCount = 0;
+  
+  for (const file of files) {
+    try {
+      // 验证文件类型
+      const validTypes = ['.pdf', '.docx', '.doc', '.pptx', '.ppt', '.md', '.txt'];
+      const fileExt = file.name.substring(file.name.lastIndexOf('.')).toLowerCase();
+      
+      if (!validTypes.includes(fileExt)) {
+        throw new Error(`不支持的文件类型: ${fileExt}`);
+      }
+      
+      // 验证文件大小（最大 10MB）
+      const maxSize = 10 * 1024 * 1024;
+      if (file.size > maxSize) {
+        throw new Error(`文件过大（最大 10MB）`);
+      }
+      
+      // 读取文件内容
+      let content;
+      if (fileExt === '.pdf' || fileExt === '.docx' || fileExt === '.doc' || fileExt === '.pptx' || fileExt === '.ppt') {
+        content = await readFileAsBase64(file);
+      } else {
+        content = await file.text();
+      }
+      
+      uploadedFiles[file.name] = {
+        content: content,
+        type: file.type,
+        size: file.size,
+        extension: fileExt
+      };
+      
+      // 显示文件
+      addFileToList(file.name, file.size, 'file');
+      
+      successCount++;
+      console.log('✅ 文件加载成功:', file.name);
+      
+    } catch (error) {
+      failCount++;
+      console.error('❌ 文件加载失败:', file.name, error);
+      alert(`文件 "${file.name}" 加载失败: ${error.message}`);
+    }
+  }
+  
+  // 如果有文件上传成功，调用AI提取
+  if (successCount > 0) {
+    await extractInfoWithAI();
+  } else {
+    elements.aiExtractStatus.style.display = 'none';
+  }
+  
+  // 清空 input
   event.target.value = '';
 }
+
+async function extractInfoWithAI() {
+  try {
+    console.log('🤖 开始AI提取信息...');
+    console.log('📦 已上传文件数:', Object.keys(uploadedFiles).length);
+    
+    // 准备文件内容
+    const filesContent = {};
+    for (const [filename, fileData] of Object.entries(uploadedFiles)) {
+      filesContent[filename] = fileData.content || fileData;
+      console.log(`   - ${filename}: ${typeof filesContent[filename] === 'string' ? filesContent[filename].length : 'unknown'} 字符`);
+    }
+    
+    // 调用后端API进行AI提取
+    const serviceUrl = currentSettings?.agentServiceUrl || 'http://localhost:8001';
+    console.log('🌐 API地址:', `${serviceUrl}/api/extract/info`);
+    
+    const response = await fetch(`${serviceUrl}/api/extract/info`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        files_content: filesContent
+      }),
+      signal: AbortSignal.timeout(60000) // 60秒超时
+    });
+    
+    console.log('📡 API响应状态:', response.status);
+    
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error('❌ API错误响应:', errorText);
+      throw new Error(`API请求失败: ${response.status} - ${errorText.substring(0, 200)}`);
+    }
+    
+    const result = await response.json();
+    
+    console.log('✅ AI提取成功:', result);
+    
+    // 隐藏加载状态
+    elements.aiExtractStatus.style.display = 'none';
+    
+    // 自动填充表单
+    const filledCount = fillFormWithExtractedInfo(result.extracted_info);
+    
+    // 显示成功提示
+    if (filledCount > 0) {
+      elements.aiSuccessMessage.textContent = `已自动填充 ${filledCount} 个字段，请检查并补充`;
+      elements.aiExtractSuccess.style.display = 'flex';
+      
+      // 5秒后自动隐藏
+      setTimeout(() => {
+        elements.aiExtractSuccess.style.display = 'none';
+      }, 5000);
+    } else {
+      // 没有提取到信息
+      elements.aiExtractStatus.style.display = 'none';
+      showToast('⚠️ 未能提取到信息，请手动填写表单', 3000);
+    }
+    
+  } catch (error) {
+    console.error('❌ AI提取失败:', error);
+    console.error('   错误详情:', error.message);
+    console.error('   错误堆栈:', error.stack);
+    
+    // 隐藏加载状态
+    elements.aiExtractStatus.style.display = 'none';
+    
+    // 显示详细错误提示
+    const errorMsg = error.message || '未知错误';
+    showToast(`⚠️ AI提取失败: ${errorMsg.substring(0, 50)}`, 5000);
+    
+    // 同时在控制台显示完整错误
+    alert(`AI提取失败\n\n错误信息：${errorMsg}\n\n请检查：\n1. Agent Service 是否运行（http://localhost:8001）\n2. 浏览器控制台是否有更多错误信息`);
+  }
+}
+
+function fillFormWithExtractedInfo(info) {
+  let filledCount = 0;
+  
+  // 自动生成场景名称
+  if (info.company_name && info.product) {
+    elements.scenarioName.value = `${info.company_name}_${info.product.substring(0, 20)}`;
+    elements.scenarioName.classList.add('auto-filled');
+    elements.scenarioName.parentElement.classList.add('auto-filled');
+    filledCount++;
+  } else if (info.company_name) {
+    elements.scenarioName.value = `${info.company_name}_测试`;
+    elements.scenarioName.classList.add('auto-filled');
+    elements.scenarioName.parentElement.classList.add('auto-filled');
+    filledCount++;
+  }
+  
+  // 填充基础字段并标记
+  if (info.company_name) {
+    elements.companyName.value = info.company_name;
+    elements.companyName.classList.add('auto-filled');
+    elements.companyName.parentElement.classList.add('auto-filled');
+    filledCount++;
+  }
+  
+  if (info.industry) {
+    elements.industry.value = info.industry;
+    elements.industry.classList.add('auto-filled');
+    elements.industry.parentElement.classList.add('auto-filled');
+    filledCount++;
+  }
+  
+  if (info.product) {
+    elements.product.value = info.product;
+    elements.product.classList.add('auto-filled');
+    elements.product.parentElement.classList.add('auto-filled');
+    filledCount++;
+  }
+  
+  if (info.revenue) {
+    elements.revenue.value = info.revenue;
+    elements.revenue.classList.add('auto-filled');
+    elements.revenue.parentElement.classList.add('auto-filled');
+    filledCount++;
+  }
+  
+  if (info.team) {
+    elements.team.value = info.team;
+    elements.team.classList.add('auto-filled');
+    elements.team.parentElement.classList.add('auto-filled');
+    filledCount++;
+  }
+  
+  if (info.funding_need) {
+    elements.fundingNeed.value = info.funding_need;
+    elements.fundingNeed.classList.add('auto-filled');
+    elements.fundingNeed.parentElement.classList.add('auto-filled');
+    filledCount++;
+  }
+  
+  // 填充高级字段
+  if (info.customers && Array.isArray(info.customers)) {
+    elements.customers.value = info.customers.join(', ');
+    elements.customers.classList.add('auto-filled');
+    elements.customers.parentElement.classList.add('auto-filled');
+    filledCount++;
+    // 展开高级选项
+    elements.advancedOptions.style.display = 'block';
+    elements.advancedIcon.classList.add('expanded');
+  }
+  
+  if (info.technology) {
+    elements.technology.value = info.technology;
+    elements.technology.classList.add('auto-filled');
+    elements.technology.parentElement.classList.add('auto-filled');
+    filledCount++;
+    // 展开高级选项
+    elements.advancedOptions.style.display = 'block';
+    elements.advancedIcon.classList.add('expanded');
+  }
+  
+  console.log(`✅ 表单已自动填充 ${filledCount} 个字段`);
+  
+  return filledCount;
+}
+
+// ============================================================================
+// 旧的文件上传处理（已废弃，保留兼容性）
+// ============================================================================
 
 async function handleFilesUpload(event) {
   const files = Array.from(event.target.files);
@@ -239,7 +539,7 @@ async function handleFilesUpload(event) {
   for (const file of files) {
     try {
       // 验证文件类型
-      const validTypes = ['.pdf', '.docx', '.doc', '.md', '.txt'];
+      const validTypes = ['.pdf', '.docx', '.doc', '.pptx', '.ppt', '.md', '.txt'];
       const fileExt = file.name.substring(file.name.lastIndexOf('.')).toLowerCase();
       
       if (!validTypes.includes(fileExt)) {
@@ -266,7 +566,7 @@ async function handleFilesUpload(event) {
       
       // 读取文件内容
       let content;
-      if (fileExt === '.pdf' || fileExt === '.docx' || fileExt === '.doc') {
+      if (fileExt === '.pdf' || fileExt === '.docx' || fileExt === '.doc' || fileExt === '.pptx' || fileExt === '.ppt') {
         // 对于二进制文件，读取为 base64
         content = await readFileAsBase64(file);
       } else {
@@ -326,9 +626,12 @@ function readFileAsBase64(file) {
   });
 }
 
-function addFileToList(filename, size, type) {
+function addFileToList(filename, size, type, targetList = null) {
+  // 确定目标列表
+  const fileList = targetList || elements.fileList;
+  
   // 检查是否已存在（避免重复显示）
-  const existing = elements.fileList.querySelector(`[data-filename="${escapeHtml(filename)}"][data-type="${type}"]`);
+  const existing = fileList.querySelector(`[data-filename="${escapeHtml(filename)}"]`);
   if (existing) {
     existing.remove();
   }
@@ -338,7 +641,7 @@ function addFileToList(filename, size, type) {
   fileItem.dataset.filename = filename;
   fileItem.dataset.type = type;
   
-  const icon = type === 'config' ? '⚙️' : getFileIcon(filename);
+  const icon = getFileIcon(filename);
   const sizeText = formatFileSize(size);
   
   // 创建文件名元素
@@ -365,13 +668,7 @@ function addFileToList(filename, size, type) {
   fileItem.appendChild(removeButton);
   
   // 添加到列表
-  if (type === 'config') {
-    // 配置文件放在最前面
-    elements.fileList.insertBefore(fileItem, elements.fileList.firstChild);
-  } else {
-    // 其他文件追加到后面
-    elements.fileList.appendChild(fileItem);
-  }
+  fileList.appendChild(fileItem);
   
   console.log(`📎 添加文件到列表: ${filename} (${type})`);
 }
@@ -383,21 +680,13 @@ function removeFile(filename, type) {
     return;
   }
   
-  // 从 DOM 移除
-  const fileItem = elements.fileList.querySelector(`[data-filename="${escapeHtml(filename)}"][data-type="${type}"]`);
-  if (fileItem) {
-    fileItem.remove();
-  }
+  // 从列表中移除
+  const fileItem = elements.fileList.querySelector(`[data-filename="${escapeHtml(filename)}"]`);
+  if (fileItem) fileItem.remove();
   
   // 从状态移除
-  if (type === 'config') {
-    currentConfig = null;
-    updateStartButton();
-    console.log('🗑️ 移除配置文件:', filename);
-  } else {
-    delete uploadedFiles[filename];
-    console.log('🗑️ 移除资料文件:', filename);
-  }
+  delete uploadedFiles[filename];
+  console.log('🗑️ 移除资料文件:', filename);
   
   // 显示提示
   showToast(`已删除: ${filename}`);
@@ -410,6 +699,8 @@ function getFileIcon(filename) {
     '.pdf': '📕',
     '.docx': '📘',
     '.doc': '📘',
+    '.pptx': '📊',
+    '.ppt': '📊',
     '.md': '📝',
     '.txt': '📄'
   };
@@ -543,14 +834,11 @@ async function handleScenarioSelect(event) {
     currentConfig = scenario.config;
     uploadedFiles = scenario.files || {};
     
-    // 清空文件列表
+    // 加载到表单
+    loadConfigToForm(scenario.config);
+    
+    // 清空文件列表并重新加载
     elements.fileList.innerHTML = '';
-    
-    // 显示配置文件
-    const configSize = JSON.stringify(scenario.config).length;
-    addFileToList(scenario.config.scenario_name + '.json', configSize, 'config');
-    
-    // 显示附加文件
     Object.entries(uploadedFiles).forEach(([filename, fileData]) => {
       let size = 0;
       if (typeof fileData === 'string') {
@@ -558,8 +846,11 @@ async function handleScenarioSelect(event) {
       } else if (fileData && fileData.content) {
         size = fileData.size || fileData.content.length;
       }
-      addFileToList(filename, size, 'file');
+      addFileToList(filename, size, 'file', elements.fileList);
     });
+    
+    // 显示预览
+    showConfigPreview(scenario.config);
     
     updateStartButton();
     
@@ -569,6 +860,34 @@ async function handleScenarioSelect(event) {
   } catch (error) {
     console.error('❌ 加载场景失败:', error);
     alert(`加载场景失败: ${error.message}`);
+  }
+}
+
+function loadConfigToForm(config) {
+  // 填充表单字段
+  elements.scenarioName.value = config.scenario_name || '';
+  elements.companyName.value = config.company_name || '';
+  elements.industry.value = config.industry || '';
+  elements.product.value = config.product || '';
+  elements.revenue.value = config.revenue || '';
+  elements.team.value = config.team || '';
+  elements.fundingNeed.value = config.funding_need || '';
+  elements.expectedResult.value = config.expected_result || '';
+  
+  // 处理客户案例
+  if (config.customers && Array.isArray(config.customers)) {
+    elements.customers.value = config.customers.join(', ');
+  } else {
+    elements.customers.value = '';
+  }
+  
+  // 处理技术描述
+  elements.technology.value = config.technology || '';
+  
+  // 如果有高级字段，展开高级选项
+  if (config.expected_result || config.customers || config.technology) {
+    elements.advancedOptions.style.display = 'block';
+    elements.advancedIcon.classList.add('expanded');
   }
 }
 
@@ -703,8 +1022,6 @@ function updateStartButton() {
 function updateButtons() {
   elements.startTest.disabled = isTestRunning || !currentConfig;
   elements.stopTest.disabled = !isTestRunning;
-  elements.uploadConfig.disabled = isTestRunning;
-  elements.uploadFiles.disabled = isTestRunning;
 }
 
 function showProgress() {
@@ -1050,84 +1367,7 @@ function handleOpenSettings() {
   console.log('⚙️ 打开设置页面');
 }
 
-// ============================================================================
-// 下载示例
-// ============================================================================
 
-function handleDownloadExample() {
-  // 创建三个示例场景
-  const examples = [
-    {
-      scenario_name: "ai_saas_pass",
-      company_name: "智语科技",
-      industry: "AI 客服 SaaS",
-      product: "基于大模型的智能客服系统",
-      revenue: "ARR 500万人民币",
-      team: "15人，核心团队来自阿里、腾讯",
-      funding_need: "A轮 2000万人民币",
-      expected_result: "passed",
-      project_details: {
-        customers: ["阿里巴巴", "腾讯", "字节跳动"],
-        technology: {
-          model: "GPT-4",
-          accuracy: "95%",
-          response_time: "2秒"
-        },
-        financials: {
-          mrr: "42万",
-          growth_rate: "30% MoM",
-          churn_rate: "5%"
-        }
-      }
-    },
-    {
-      scenario_name: "hardware_reject",
-      company_name: "未来机器人",
-      industry: "硬件创业",
-      product: "消费级机器人",
-      revenue: "0",
-      team: "5人，无相关经验",
-      funding_need: "天使轮 500万人民币",
-      expected_result: "rejected",
-      project_details: {
-        stage: "原型阶段",
-        market: "消费市场",
-        competition: "强",
-        technology: "外购方案"
-      }
-    },
-    {
-      scenario_name: "medical_ai_edge",
-      company_name: "医疗 AI",
-      industry: "医疗 AI",
-      product: "AI 辅助诊断系统",
-      revenue: "ARR 200万",
-      team: "8人，医疗+AI 背景",
-      funding_need: "Pre-A 1000万人民币",
-      expected_result: "pending",
-      project_details: {
-        certifications: ["NMPA 二类医疗器械"],
-        hospitals: ["协和医院", "301医院"],
-        accuracy: "92%",
-        regulatory_risk: "中等"
-      }
-    }
-  ];
-  
-  // 下载每个示例
-  examples.forEach(example => {
-    const blob = new Blob([JSON.stringify(example, null, 2)], { type: 'application/json' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `${example.scenario_name}.json`;
-    a.click();
-    URL.revokeObjectURL(url);
-  });
-  
-  console.log('📥 下载示例配置文件:', examples.length, '个');
-  alert(`已下载 ${examples.length} 个示例配置文件`);
-}
 
 // 监听设置更新
 chrome.storage.onChanged.addListener((changes, namespace) => {
