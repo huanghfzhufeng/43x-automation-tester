@@ -14,22 +14,127 @@
       <p class="subtitle">自动化测试工具</p>
     </div>
 
-    <!-- 文件上传区 -->
-    <div class="upload-section">
-      <h3>📁 上传场景配置</h3>
-      <div class="upload-buttons">
-        <button id="uploadConfig" class="btn btn-secondary">
-          上传配置 (.json)
+
+
+    <!-- 表单配置区 -->
+    <div id="formConfigSection" class="config-section">
+      <form id="configForm">
+        <!-- 上传资料区（简化版，置顶） -->
+        <div class="upload-section-simple">
+          <label class="form-label">📎 上传项目资料（可选）</label>
+          <button type="button" id="uploadFilesBtn" class="btn btn-secondary btn-block">
+            选择文件 (.pdf/.docx/.pptx/.md/.txt)
+          </button>
+          <input type="file" id="filesInput" accept=".pdf,.docx,.doc,.pptx,.ppt,.md,.txt" multiple style="display: none;">
+          <p class="upload-hint">💡 上传后将自动提取信息填充表单</p>
+          
+          <!-- AI 提取状态 -->
+          <div id="aiExtractStatus" class="ai-status" style="display: none;">
+            <span class="spinner">⏳</span>
+            <span>AI 正在分析文档...</span>
+          </div>
+          
+          <div id="aiExtractSuccess" class="ai-success" style="display: none;">
+            <span>✅</span>
+            <span id="aiSuccessMessage">已自动填充 0 个字段</span>
+          </div>
+          
+          <div id="fileList" class="file-list"></div>
+        </div>
+        <!-- 基础信息 -->
+        <div class="form-group">
+          <label class="form-label required">场景名称</label>
+          <input type="text" id="scenarioName" class="form-input" placeholder="例如：AI客服系统测试" required>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label required">公司名称</label>
+          <input type="text" id="companyName" class="form-input" placeholder="例如：智语科技" required>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label">行业类型</label>
+          <select id="industry" class="form-select">
+            <option value="">请选择行业...</option>
+            <option value="AI SaaS">AI SaaS</option>
+            <option value="企业服务">企业服务</option>
+            <option value="电商平台">电商平台</option>
+            <option value="金融科技">金融科技</option>
+            <option value="教育科技">教育科技</option>
+            <option value="医疗健康">医疗健康</option>
+            <option value="智能硬件">智能硬件</option>
+            <option value="其他">其他</option>
+          </select>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label">产品描述</label>
+          <textarea id="product" class="form-textarea" rows="2" placeholder="简要描述您的产品或服务"></textarea>
+        </div>
+
+        <div class="form-row">
+          <div class="form-group">
+            <label class="form-label">营收情况</label>
+            <input type="text" id="revenue" class="form-input" placeholder="例如：ARR 500万">
+          </div>
+          <div class="form-group">
+            <label class="form-label">团队规模</label>
+            <input type="text" id="team" class="form-input" placeholder="例如：15人">
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label">融资需求</label>
+          <input type="text" id="fundingNeed" class="form-input" placeholder="例如：A轮 2000万">
+        </div>
+
+        <!-- 高级选项（可折叠） -->
+        <div class="advanced-section">
+          <button type="button" id="toggleAdvanced" class="toggle-btn">
+            <span id="advancedIcon">▶</span> 高级选项
+          </button>
+          <div id="advancedOptions" class="advanced-options" style="display: none;">
+            <div class="form-group">
+              <label class="form-label">预期结果</label>
+              <select id="expectedResult" class="form-select">
+                <option value="">自动判断</option>
+                <option value="passed">通过</option>
+                <option value="rejected">拒绝</option>
+              </select>
+              <small class="form-hint">用于测试验证，留空则由系统判断</small>
+            </div>
+
+            <div class="form-group">
+              <label class="form-label">客户案例</label>
+              <input type="text" id="customers" class="form-input" placeholder="用逗号分隔，例如：阿里巴巴,腾讯,字节跳动">
+            </div>
+
+            <div class="form-group">
+              <label class="form-label">核心技术</label>
+              <textarea id="technology" class="form-textarea" rows="2" placeholder="描述核心技术优势"></textarea>
+            </div>
+          </div>
+        </div>
+
+
+
+        <!-- 提交按钮 -->
+        <button type="submit" class="btn btn-primary btn-block">
+          ✅ 生成配置
         </button>
-        <button id="uploadFiles" class="btn btn-secondary">
-          上传资料 (.pdf/.docx/.md/.txt)
-        </button>
+      </form>
+
+      <!-- 配置预览 -->
+      <div id="configPreview" class="config-preview" style="display: none;">
+        <div class="preview-header">
+          <h4>📋 配置预览</h4>
+          <button type="button" id="editConfig" class="btn-link-small">编辑</button>
+        </div>
+        <div id="previewContent" class="preview-content"></div>
       </div>
-      <input type="file" id="configFileInput" accept=".json" style="display: none;">
-      <input type="file" id="filesInput" accept=".pdf,.docx,.doc,.md,.txt" multiple style="display: none;">
-      
-      <div id="fileList" class="file-list"></div>
     </div>
+
+
 
     <!-- 场景选择 -->
     <div class="scenario-section">
@@ -83,7 +188,6 @@
     <div class="action-section">
       <button id="viewLogs" class="btn btn-link">📄 查看日志</button>
       <button id="settings" class="btn btn-link">⚙️ 设置</button>
-      <button id="downloadExample" class="btn btn-link">📥 下载示例</button>
     </div>
 
     <!-- 状态栏 -->

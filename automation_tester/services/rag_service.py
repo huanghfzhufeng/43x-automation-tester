@@ -160,7 +160,13 @@ class RAGService:
                 )
 
             # 获取或创建 collection
-            collection_name = f"session_{self.session_id}"
+            # ChromaDB 只允许 a-zA-Z0-9._- 字符，需要清理 session_id
+            import re
+            safe_session_id = re.sub(r'[^a-zA-Z0-9._-]', '_', self.session_id)
+            # 限制长度（ChromaDB 要求 3-512 字符）
+            if len(safe_session_id) > 500:
+                safe_session_id = safe_session_id[:500]
+            collection_name = f"session_{safe_session_id}"
             try:
                 self._collection = self._client.get_collection(
                     name=collection_name,
@@ -289,7 +295,12 @@ class RAGService:
 
         try:
             # 删除 collection
-            collection_name = f"session_{self.session_id}"
+            # ChromaDB 只允许 a-zA-Z0-9._- 字符，需要清理 session_id
+            import re
+            safe_session_id = re.sub(r'[^a-zA-Z0-9._-]', '_', self.session_id)
+            if len(safe_session_id) > 500:
+                safe_session_id = safe_session_id[:500]
+            collection_name = f"session_{safe_session_id}"
             self._client.delete_collection(name=collection_name)
 
             # 重置状态

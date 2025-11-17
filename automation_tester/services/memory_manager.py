@@ -381,19 +381,52 @@ class MemoryManager:
         round_numbers = [msg.round_number for msg in messages]
         round_range = (min(round_numbers), max(round_numbers))
 
-        # 如果没有 LLM 客户端，使用简单的规则生成摘要
+        # 如果没有 LLM 客户端，使用改进的规则生成摘要
         if self.llm_client is None:
-            logger.warning("⚠️ 未提供 LLM 客户端，使用简单规则生成摘要")
+            logger.warning("⚠️ 未提供 LLM 客户端，使用改进规则生成摘要")
 
-            # 简单摘要：截取前 200 字符
-            summary_text = conversation_text[:200] + "..."
+            # 🔥 改进的摘要生成：提取问答对
+            qa_pairs = []
+            current_question = None
 
-            # 简单提取关键事实：每条用户消息作为一个事实
-            key_facts = [
-                msg.content[:100] + ("..." if len(msg.content) > 100 else "")
-                for msg in messages
-                if msg.role == "user"
-            ]
+            for msg in messages:
+                if msg.role == "user":
+                    current_question = msg.content
+                elif msg.role == "assistant" and current_question:
+                    # 截取问题和回答的关键部分
+                    q_short = current_question[:80] + ("..." if len(current_question) > 80 else "")
+                    a_short = msg.content[:120] + ("..." if len(msg.content) > 120 else "")
+                    qa_pairs.append(f"Q: {q_short}\nA: {a_short}")
+                    current_question = None
+
+            # 生成摘要文本
+            summary_text = f"第 {round_range[0]}-{round_range[1]} 轮对话涉及 {len(qa_pairs)} 个问答。\n" + "\n\n".join(qa_pairs[:3])  # 最多保留3个问答对
+
+            # 🔥 改进的关键事实提取：提取助手回答中的关键信息
+            key_facts = []
+            for msg in messages:
+                if msg.role == "assistant":
+                    # 尝试提取数字、百分比、关键词
+                    content = msg.content
+                    # 简单规则：提取包含数字的句子
+                    sentences = content.replace("。", ".").split(".")
+                    for sentence in sentences:
+                        sentence = sentence.strip()
+                        if sentence and (any(char.isdigit() for char in sentence) or len(sentence) < 100):
+                            if sentence not in key_facts:  # 去重
+                                key_facts.append(sentence[:150])
+                                if len(key_facts) >= 5:  # 最多5个关键事实
+                                    break
+                    if len(key_facts) >= 5:
+                        break
+
+            # 如果没有提取到关键事实，使用用户问题作为备选
+            if not key_facts:
+                key_facts = [
+                    msg.content[:100] + ("..." if len(msg.content) > 100 else "")
+                    for msg in messages
+                    if msg.role == "user"
+                ][:3]
 
             return ConversationSummary(
                 summary=summary_text,
@@ -431,6 +464,8 @@ class MemoryManager:
     def _call_llm_for_summary(self, conversation_text: str) -> tuple[str, list[str]]:
         """
         调用 LLM 生成摘要
+        
+        🔥 根本性优化：生成极度压缩的摘要，使用 | 分隔关键事实
 
         Args:
             conversation_text: 对话文本
@@ -438,78 +473,44 @@ class MemoryManager:
         Returns:
             tuple[str, list[str]]: (摘要文本, 关键事实列表)
         """
-        # 构建 Prompt
-        prompt = f"""请对以下对话进行摘要，提取关键信息和事实。
+        # 🔥 优化 Prompt：要求极度压缩
+        prompt = f"""请将以下投资人与创业者的对话压缩为极简摘要（不超过150字）：
 
-对话内容：
 {conversation_text}
 
-请按以下格式输出：
-
-摘要：
-[用 2-3 句话概括对话的主要内容]
-
-关键事实：
-1. [关键事实 1]
-2. [关键事实 2]
-3. [关键事实 3]
-...
-
 要求：
-- 摘要要简洁明了，突出重点
-- 关键事实要具体、可验证
-- 保留重要的数字、名称、时间等信息
-"""
+1. 只提取最关键的 2-3 个事实
+2. 保留具体数字和指标（如：35万用户、50ms延迟、ARR 500万）
+3. 使用 | 分隔事实
+4. 格式：事实1 | 事实2 | 事实3
+
+示例：
+讨论项目起源和核心功能音音保护音音分身 | 35万用户零推广增长 | 端侧部署50ms延迟4.5分自然度
+
+直接输出摘要，不要其他内容："""
 
         # 调用 LLM
         response = self.llm_client.chat.completions.create(
             model="gpt-4o-mini",  # 使用较小的模型节省成本
             messages=[
-                {"role": "system", "content": "你是一个专业的对话摘要助手。"},
+                {"role": "system", "content": "你是一个专业的对话摘要助手，擅长提取关键信息并极度压缩。"},
                 {"role": "user", "content": prompt},
             ],
             temperature=0.3,
+            max_tokens=100,  # 🔥 限制输出长度
         )
 
         # 解析响应
-        content = response.choices[0].message.content
+        content = response.choices[0].message.content.strip()
 
-        # 提取摘要和关键事实
-        summary_text = ""
-        key_facts = []
+        # 🔥 简化解析：直接使用 LLM 输出作为摘要
+        summary_text = content[:150]  # 限制长度
 
-        lines = content.split("\n")
-        in_summary = False
-        in_facts = False
-
-        for line in lines:
-            line = line.strip()
-
-            if line.startswith("摘要：") or line == "摘要:":
-                in_summary = True
-                in_facts = False
-                continue
-            elif line.startswith("关键事实：") or line == "关键事实:":
-                in_summary = False
-                in_facts = True
-                continue
-
-            if in_summary and line:
-                summary_text += line + " "
-            elif in_facts and line:
-                # 移除序号
-                fact = line.lstrip("0123456789.-) ")
-                if fact:
-                    key_facts.append(fact)
-
-        summary_text = summary_text.strip()
-
-        # 如果解析失败，使用整个响应作为摘要
-        if not summary_text:
-            summary_text = content[:200] + "..."
-
-        if not key_facts:
-            key_facts = ["无法提取关键事实"]
+        # 🔥 提取关键事实（按 | 分割）
+        key_facts = [f.strip() for f in content.split("|") if f.strip()]
+        
+        # 限制关键事实数量
+        key_facts = key_facts[:3]
 
         logger.debug(f"LLM 生成摘要: {len(summary_text)} 字符, {len(key_facts)} 个事实")
 

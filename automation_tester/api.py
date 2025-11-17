@@ -19,7 +19,7 @@ from fastapi.responses import JSONResponse
 from pydantic import BaseModel
 
 from automation_tester.config import AppConfig, LLMConfig
-from automation_tester.logging_config import LogContext, get_logger, setup_logging
+from automation_tester.utils.logging_config import LogContext, get_logger, setup_logging
 
 # 初始化日志系统
 setup_logging()
@@ -518,13 +518,10 @@ async def start_test(request: StartTestRequest):
             else:
                 logger.info("   上传文件数: 0")
 
-            # 创建 Entrepreneur Agent
-            from automation_tester.entrepreneur_agent import EntrepreneurAgent
+            # 创建 Entrepreneur Agent（使用重构后的 Manager）
+            from automation_tester.agents import EntrepreneurAgentManager
 
-            agent = EntrepreneurAgent(request.scenario_config)
-
-            # 预热：确保会话已初始化（异步方法）
-            await agent.ensure_session()
+            agent = EntrepreneurAgentManager(request.scenario_config)
 
             # 🔥 添加到 LRU 缓存（如果已存在则更新）
             add_to_cache(agent.session_id, agent)
@@ -779,6 +776,183 @@ async def cleanup_expired_sessions():
     except Exception as e:
         logger.error(f"❌ 清理过期会话失败: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail=str(e)) from e
+
+
+@app.post("/api/extract/info")
+async def extract_info_from_files(request: Request):
+    """
+    从上传的文件中提取项目信息
+    
+    使用 LLM 分析文件内容，提取结构化的项目信息
+    
+    请求格式:
+    {
+        "files_content": {
+            "filename.pdf": "base64_content" or "text_content",
+            ...
+        }
+    }
+    
+    Returns:
+        dict: 提取的结构化信息
+    """
+    # 在函数开头导入所有需要的模块
+    import base64
+    import json
+    import os
+    import re
+    import tempfile
+
+    from automation_tester.file import FileService, FileType
+    from automation_tester.utils.file_utils import get_file_extension
+    from openai import OpenAI
+    
+    with LogContext(logger, "AI提取信息"):
+        try:
+            body = await request.json()
+            files_content = body.get("files_content", {})
+            
+            if not files_content:
+                raise HTTPException(status_code=400, detail="未提供文件内容")
+            
+            logger.info(f"📄 收到 {len(files_content)} 个文件，开始AI提取")
+            
+            # 处理文件内容
+            all_text = []
+            
+            for filename, content in files_content.items():
+                try:
+                    ext = get_file_extension(filename)
+                    logger.info(f"   处理文件: {filename} ({ext})")
+                    
+                    # 二进制文件类型
+                    binary_extensions = ["pdf", "docx", "doc", "pptx", "ppt"]
+                    
+                    if ext in binary_extensions:
+                        # 解码base64
+                        file_data = base64.b64decode(content)
+                        
+                        # 创建临时文件
+                        with tempfile.NamedTemporaryFile(delete=False, suffix=f".{ext}", mode="wb") as tmp:
+                            tmp.write(file_data)
+                            tmp_path = tmp.name
+                        
+                        try:
+                            # 解析文件
+                            file_type_map = {
+                                "pdf": FileType.PDF,
+                                "docx": FileType.WORD,
+                                "doc": FileType.WORD,
+                                "pptx": FileType.PPT,
+                                "ppt": FileType.PPT,
+                            }
+                            
+                            file_type = file_type_map.get(ext, FileType.TXT)
+                            
+                            content_chunks = []
+                            async for chunk in FileService.read_content(tmp_path, file_type):
+                                content_chunks.append(chunk)
+                            
+                            parsed_content = "\n\n".join(content_chunks)
+                            all_text.append(f"## 文件: {filename}\n\n{parsed_content}")
+                            
+                        finally:
+                            # 删除临时文件
+                            try:
+                                os.unlink(tmp_path)
+                            except Exception:
+                                pass
+                    else:
+                        # 文本文件直接使用
+                        all_text.append(f"## 文件: {filename}\n\n{content}")
+                    
+                    logger.info(f"   ✅ 文件处理成功: {filename}")
+                    
+                except Exception as e:
+                    logger.error(f"   ❌ 文件处理失败: {filename} - {e}")
+                    continue
+            
+            if not all_text:
+                raise HTTPException(status_code=400, detail="无法解析任何文件内容")
+            
+            combined_text = "\n\n---\n\n".join(all_text)
+            
+            # 限制文本长度
+            max_chars = 20000
+            if len(combined_text) > max_chars:
+                combined_text = combined_text[:max_chars] + "\n\n[... 内容过长，已截断 ...]"
+            
+            logger.info(f"📝 合并文本长度: {len(combined_text)} 字符")
+            
+            # 使用 LLM 提取信息
+            client = OpenAI(
+                api_key=LLMConfig.api_key,
+                base_url=LLMConfig.base_url,
+            )
+            
+            extraction_prompt = f"""请从以下商业计划书或项目资料中提取关键信息，以JSON格式返回。
+
+要提取的字段：
+- company_name: 公司名称（字符串）
+- industry: 行业类型（字符串，如"AI SaaS"、"企业服务"等）
+- product: 产品描述（字符串，简要描述）
+- revenue: 营收情况（字符串，如"ARR 500万"）
+- team: 团队规模（字符串，如"15人"）
+- funding_need: 融资需求（字符串，如"A轮 2000万"）
+- customers: 客户案例（数组，如["阿里巴巴", "腾讯"]）
+- technology: 核心技术（字符串，简要描述）
+
+注意：
+1. 只返回JSON格式，不要其他说明文字
+2. 如果某个字段找不到信息，不要包含该字段
+3. 确保JSON格式正确
+
+文档内容：
+
+{combined_text}
+
+请返回JSON："""
+            
+            logger.info("🤖 调用 LLM 提取信息...")
+            logger.info(f"   使用模型: {LLMConfig.model}")
+            
+            response = client.chat.completions.create(
+                model=LLMConfig.model,
+                messages=[
+                    {"role": "system", "content": "你是一个专业的商业计划书分析助手，擅长从文档中提取结构化信息。"},
+                    {"role": "user", "content": extraction_prompt}
+                ],
+                temperature=0.3,
+                max_tokens=1000,
+            )
+            
+            result_text = response.choices[0].message.content.strip()
+            logger.info(f"📤 LLM 返回: {result_text[:200]}...")
+            
+            # 解析JSON（尝试提取JSON，可能包含markdown代码块）
+            json_match = re.search(r'```(?:json)?\s*(\{.*?\})\s*```', result_text, re.DOTALL)
+            if json_match:
+                result_text = json_match.group(1)
+            
+            extracted_info = json.loads(result_text)
+            
+            logger.info(f"✅ 信息提取成功: {list(extracted_info.keys())}")
+            
+            return {
+                "success": True,
+                "extracted_info": extracted_info,
+                "files_processed": len(files_content)
+            }
+            
+        except HTTPException:
+            raise
+        except json.JSONDecodeError as e:
+            logger.error(f"❌ JSON解析失败: {e}")
+            logger.error(f"   原始文本: {result_text}")
+            raise HTTPException(status_code=500, detail=f"AI返回的格式无法解析: {str(e)}")
+        except Exception as e:
+            logger.error(f"❌ 信息提取失败: {e}", exc_info=True)
+            raise HTTPException(status_code=500, detail=str(e))
 
 
 @app.get("/health")
